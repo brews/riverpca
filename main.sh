@@ -11,16 +11,7 @@
 ./parse_ersstv3.py
 ./parse_noaaoiv2.py
 
-./riverEOFS_short.py
-./riverEOFS_long.py
-
-./create_search_20threanv2_coastal.py
-./create_search_20threanv2_pacificgrid.py
-
-
 ./plot_samplemap_riversdb.py
 ./plot_samplemap_usgs_short.py
 ./plot_samplemap_usgs_long.py
 ./plot_samplemap_usgs_sampledecay.py
-# ./plot_20threanv2_atlas.py  # Plots big PDF.
-./combine_river_search.py
