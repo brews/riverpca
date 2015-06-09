@@ -107,6 +107,21 @@ def plot_trendmap(x, lat, lon):
     plt.title("Trend coef")
     return fig
 
+def plot_vectormap(coef1, coef2, lat, lon):
+    """See Fig. 2 of Quadrelli and Wallace, 2004"""
+    fig = plt.figure(figsize = (5, 4))
+    m = Basemap(width = 2000000, height = 2300000, 
+                resolution = 'l', projection = 'stere', 
+                lat_ts = 40.0, 
+                lat_0 = 40.0, lon_0 = -114.0)
+    x, y = m(lon, lat)
+    m.drawcoastlines(linewidth = 0.7, color = "#696969")
+    m.drawstates(linewidth = 0.7, color = "#696969")
+    m.drawcountries(linewidth = 0.7, color = "#696969")
+    m.quiver(x, y, coef1, coef2, scale = 10)
+    m.scatter(x, y, facecolors = "none", edgecolor = "k")
+    return fig
+
 def plot_eof(x, lat, lon, nmodes=10):
     """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
     eof = x.eofsAsCovariance(neofs = nmodes)
