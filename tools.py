@@ -6,12 +6,21 @@
 import sqlite3
 import string
 from calendar import monthrange
+import datetime
 import numpy as np
 import pandas as pd
-from numpy.linalg import svd
+# from numpy.linalg import svd
 import scipy.stats as stats
 import pylab as plt
 from mpl_toolkits.basemap import Basemap
+
+class Date(datetime.date):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        if self.month in (10, 11, 12):
+            self.wateryear = self.year + 1
+        else:
+            self.wateryear = self.year
 
 def check_monthly(dbpath, yearlow, yearhigh, westoflon=-104, eastoflon=-125):
     """Test that each of the USGS stations in the sqllite database have complete observations over the period we are interested in"""
@@ -56,19 +65,20 @@ def trender(x):
 
 def varimax(Phi, gamma = 1.0, q = 20, tol = 1e-6):
     """ Varimax rotation of a 'loadings matrix', Phi. Output is (rotated loadings, rotation matrix). This is loosely based on the R stats library's varimax()."""
-    p,k = Phi.shape
-    R = np.eye(k)
-    d=0
-    for i in xrange(q):
-        d_old = d
-        Lambda = np.dot(Phi, R)
-        b = np.dot(Phi.T, np.asarray(Lambda)**3 - (gamma/p) * np.dot(Lambda, diag(diag(np.dot(Lambda.T,Lambda)))))
-        u,s,vh = svd(b)
-        R = np.dot(u,vh)
-        d = np.sum(s)
-        if d_old!=0 and d/d_old < 1 + tol:
-            break
-    return (np.dot(Phi, R), R)
+    pass
+    # p,k = Phi.shape
+    # R = np.eye(k)
+    # d=0
+    # for i in xrange(q):
+    #     d_old = d
+    #     Lambda = np.dot(Phi, R)
+    #     b = np.dot(Phi.T, np.asarray(Lambda)**3 - (gamma/p) * np.dot(Lambda, diag(diag(np.dot(Lambda.T,Lambda)))))
+    #     u,s,vh = svd(b)
+    #     R = np.dot(u,vh)
+    #     d = np.sum(s)
+    #     if d_old!=0 and d/d_old < 1 + tol:
+    #         break
+    # return (np.dot(Phi, R), R)
 
 def plot_northtest(x, nmodes=10):
     """Screeplot `nmodes` leading modes from EOFS solver instance `x`"""
@@ -203,39 +213,81 @@ def pearson_corr(x, field):
     p.shape = r.shape
     return r, p
 
-def ttest_proportion_sig(a, b, alpha):
-    """Returns the proportion of significant Welch's t-test results"""
-    #TODO: This needs to give percent of area that is significant, weighting
-    #      the grid by it's latitude.
-    t, p = stats.ttest_ind(a, b, equal_var = False)
-    # return (p <= alpha).sum()/p.size, t, p
-    pass
+# def ttest_proportion_sig(a, b, alpha):
+#     """Returns the proportion of significant Welch's t-test results"""
+#     #TODO: This needs to give percent of area that is significant, weighting
+#     #      the grid by it's latitude.
+#     t, p = stats.ttest_ind(a, b, equal_var = False)
+#     # return (p <= alpha).sum()/p.size, t, p
+#     pass
 
-def field_composite(series, yr, field, divisions=2):
-    """Return SST or Z field composites for extreme ends of a time series"""
-    labs = list(string.ascii_lowercase)[:divisions]
-    quarts = pd.qcut(series, np.linspace(0, 1, divisions + 1), labels = labs)
-    composite = {"low": field[(quarts == labs[0])], "high": field[(quarts == labs[-1])]}
-    years = {"low": yr[(quarts == labs[0])], "high": yr[(quarts == labs[-1])]}
-    return composite, years
+# def build_composite(series, yr, field, divisions=2):
+#     """Return SST or Z field composites for extreme ends of a time series"""
+#     labs = list(string.ascii_lowercase)[:divisions]
+#     quarts = pd.qcut(series, np.linspace(0, 1, divisions + 1), labels = labs)
+#     composite = {"low": field[(quarts == labs[0])],
+#                  "high": field[(quarts == labs[-1])]}
+#     years = {"low": yr[(quarts == labs[0])],
+#              "high": yr[(quarts == labs[-1])]}
+#     return composite, years
 
-def composite_mc_ttest(series, yr, field, alpha=0.1, nruns=500, divisions=4):
-    """Field significance for Welch's t-test of field composites"""
-    composite, years = field_composite(series, yr, field)
-    proportion_sig, t, p = ttest_proportion_sig(composite["high"], composite["low"], alpha = alpha)
-    low_bound = len(years["high"])
-    high_bound = low_bound + len(years["low"])
-    mc_props = np.zeros(nruns)
-    for i in range(nruns):
-        draw = np.random.permutation(field.shape[0])
-        population_a = field[draw[:low_bound]]
-        population_b = field[draw[low_bound:high_bound]]
-        mc_props[i] = ttest_proportion_sig(population_a, population_b, alpha)
-    return p, stats.percentileofscore(mc_props, proportion_sig, kind = "rank")
+# def composite_mc_ttest(series, yr, field, alpha=0.1, nruns=500, divisions=4):
+#     """Field significance for Welch's t-test of field composites"""
+#     composite, years = field_composite(series, yr, field)
+#     proportion_sig, t, p = ttest_proportion_sig(composite["high"], composite["low"], alpha = alpha)
+#     low_bound = len(years["high"])
+#     high_bound = low_bound + len(years["low"])
+#     mc_props = np.zeros(nruns)
+#     for i in range(nruns):
+#         draw = np.random.permutation(field.shape[0])
+#         population_a = field[draw[:low_bound]]
+#         population_b = field[draw[low_bound:high_bound]]
+#         mc_props[i] = ttest_proportion_sig(population_a, population_b, alpha)
+#     return p, stats.percentileofscore(mc_props, proportion_sig, kind = "rank")
 
-def plot_field_composite(series, yr, field, divisions):
-    """Compare SST or Z field composites for extreme terciles of a time series"""
-    comp, yrs = field_composite(series, yr, field, divisions)
+
+def plot_hgt_composite(field, lat, lon, msk, use_ax = None, plot_title=None, 
+                       contour_divs=None, fill_min=None, fill_max=None):
+    """Plot a hgt composite given a mask"""
+    if use_ax is None:
+        use_ax = plt.gca()
+    field_mean = field[msk].mean(axis = 0)
+    zonal_mean = field_mean.mean(axis = 1)
+    eddy_mean = field_mean - zonal_mean[:, np.newaxis]
+    m = Basemap(ax = use_ax, projection = 'npstere', boundinglat = 20,
+                lon_0 = 210, resolution='c')
+    m.drawcoastlines(color = "#696969")
+    m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
+    m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
+    ctf = m.contourf(lon, lat, field_mean, latlon = True, 
+                     V = contour_divs)
+    m.colorbar(ctf)
+    # pcol = m.pcolormesh(lon, lat, eddy_mean, latlon = True, 
+    #                     cmap = plt.cm.RdBu, 
+    #                     vmin = fill_min, vmax = fill_max)
+    ct = m.contour(lon, lat, field_mean, colors = "k", latlon = True, 
+                     V = contour_divs)
+    # plt.clabel(ct, fontsize = 10, fmt = "%.0f")
+    # cb = m.colorbar(pcol)
+    if plot_title:
+        use_ax.set_title(plot_title)
+
+def plot_many_hgt_composites(pc, yr, **kwargs):
+    """Plot multiple hgt composites based on +/- phases of a PC
+    """
+    fig, axes = plt.subplots(figsize = (6.5, 9.5), nrows = 2, ncols = 1)
+    msks = [pc > 0, pc < 0]
+    signs = ["+", "-"]
+    intervals = np.arange(0, kwargs["field"].max() + 60, 60)
+    for i in range(2):
+        target_mask = msks[i]
+        year_str = "\n" + ", ".join(str(v) for v in list(yr[target_mask]))
+        # year_str = ""
+        title_str = signs[i] + "PC" + year_str
+        plot_hgt_composite(msk = target_mask, use_ax = axes.flat[i], 
+                           plot_title = title_str, contour_divs = intervals, **kwargs)
+    return fig
+
     # wings = np.max([np.absolute([x.min() for x in ), np.absolute(composit_anoms.max())])
 #     # Composite map of NDJ mean 500 mb height anomalies.
 #     erai = np.load(ERAI_PATH)
