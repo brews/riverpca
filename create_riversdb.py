@@ -5,7 +5,7 @@
 import sqlite3 as sql
 import pandas as pd
 import numpy as np
-import tools
+from calendar import monthrange
 
 DATACACHE = "./data/rivers/"
 DB_PATH = "./data/riversdb.sqlite"
@@ -46,6 +46,17 @@ SCHEMA_STRING = """
                                FOREIGN KEY (reconname) REFERENCES ReconMeta(reconname));
                 """
 
+def seconds_in_month(date=None, year=None, month=None):
+    """Return the number of seconds in a given month"""
+    try:
+        year = date.year
+        month = date.month
+    except AttributeError:
+        pass
+    seconds_in_day = 24 * 60 * 60
+    n_days = monthrange(year, month)[-1]
+    return n_days * seconds_in_day
+
 def create_database(path, data, schema):
     """Create an sqlite3 database of river and reconstruction information.
 
@@ -82,20 +93,10 @@ def main():
 
 
     # Colorado River at Lees Ferry, AZ
-    # From http://treeflow.info/upco/index.html on 2011-11-12
     # Colorado River
     gage_name = "Colorado River at Lees Ferry, AZ"
-    recon_name = "Reconstructed Colorado River at Lees Ferry, AZ"
-    nan = "-9999"
-    skip_lines = 17
-    # The values for each of the columns in the raw file, starting from 0.
-    year_column = 0
-    gage_column = 2
-    recon_column = 1
     conversion_multiple = 3.90875156e-5 # acre feet/yr to m^3/s
-    raw_lines = []
-    with open(DATACACHE + "coloradoleesmeko.txt", "r") as fl:
-        raw_lines = fl.readlines() 
+    # Now at lees_ferry_WYparsed.csv
 
     out["GageMeta"].append((gage_name,
                          "Upper Colorado River basin",
@@ -103,24 +104,18 @@ def main():
                          "m^3/s",
                          36.864722,
                          -111.5875,
-                         "",  # Citation
+                         "From personal communication with Jim Prairie",  # Citation
                          "",  # Notes
-                         "http://treeflow.info/upco/coloradoleesmeko.txt",  # URL
-                         "2011-11-12"))
-    out["ReconMeta"].append((recon_name,
-                             "m^3/s",
-                             gage_name,
-                             "Meko, D.M., C.A. Woodhouse, C.H. Baisan, T. Knight, J.J. Lukas, M.K. Hughes, and M.W. Salzer. 2007. Medieval drought in the upper Colorado River Basin. Geophysical Research Letters, Vol. 34, L10705",
-                             "", # Notes
-                             "http://treeflow.info/upco/coloradoleesmeko.txt",
-                             "2011-11-12"))
-    for line in raw_lines[skip_lines:]:
-        line = line.rstrip().split()
-        if line[gage_column] != nan:
-            out["Gage"].append((gage_name, int(line[year_column]), int(line[gage_column]) * conversion_multiple))
-        if line[recon_column] != nan:
-            out["Recon"].append((gage_name, int(line[year_column]), int(line[recon_column]) * conversion_multiple))
-
+                         "http://www.usbr.gov/lc/region/g4000/NaturalFlow/current.html",  # URL
+                         "2015-01-30"))
+    d = pd.read_table(DATACACHE + "lees_ferry_WYparsed.csv", sep = ",",
+                      skiprows = [0, 1, 2] + list(range(113, 119)),
+                      header = None, names = ("year", "value"))
+    d.value *= conversion_multiple
+    for r in d.to_records():
+        wateryear = int(r[1])
+        value = float(r[2])
+        out["Gage"].append((gage_name, wateryear, value))
 
     # Sacramento Four Rivers Index, CA
     # From personal communication with Dave Meko on 2011-11-12.
@@ -128,16 +123,7 @@ def main():
     #   A parsed version of WSIHist_SacSan.txt, including only the WY Index column,
     #   WSIHist_SacSan-PARSED.txt.
     gage_name = "Sacramento Four Rivers Index"
-    nan = ""
-    skip_lines = 1
-    # The values for each of the columns in the raw file, starting from 0.
-    year_column = 0
-    gage_column = 1
-    recon_column = None
     conversion_multiple = 39.0875156  # MAF/yr to m^3/s
-    raw_lines = []
-    with open(DATACACHE + "WSIHist_SacSan-PARSED.txt", "r") as fl:
-        raw_lines = fl.readlines() 
 
     out["GageMeta"].append((gage_name,
                          "Sacramento River basin",
@@ -149,10 +135,15 @@ def main():
                          "There is no reconstruction for this gage.",  # Notes
                          "",  # URL
                          "2011-11-12"))
-    for line in raw_lines[skip_lines:]:
-        line = line.rstrip().split()
-        if line[gage_column] != nan:
-            out["Gage"].append((gage_name, int(line[year_column]), float(line[gage_column]) * conversion_multiple))
+    d = pd.read_table(DATACACHE + "WSIHist_SacSan.txt", 
+                      delim_whitespace = True, 
+                      skiprows = list(range(18)) + list(range(123, 131)), 
+                      header = None)
+    d[3] *= conversion_multiple
+    for r in d.to_records():
+        wateryear = int(r[1])
+        value = float(r[4])
+        out["Gage"].append((gage_name, wateryear, value))
 
 
     # "Jackson Lake at Dam on Snake River near Moran, WY"
@@ -280,7 +271,6 @@ def main():
     # Downloaded from http://warm.atmos.washington.edu/2860/products/sites/r7climate/subbasin_summaries/4030/nat_bias_adjusted_vic_streamflow_monthly_historical.dat on 2015-06-10.
     # NOTE: Want column 0 and a water-year sum of the other columns.
     gage_name = "Columbia River at Dalles, OR"
-
     out["GageMeta"].append((gage_name,
                        "Columbia River basin",
                        "Columbia River",
@@ -290,7 +280,7 @@ def main():
                        "From email personal communication with Jeremy S. Littell.",  # Citation
                        "Downloaded 2015-06-10 from http://warm.atmos.washington.edu/2860/products/sites/r7climate/subbasin_summaries/4030/nat_bias_adjusted_vic_streamflow_monthly_historical.dat.",  # Notes
                        "",  # URL
-                       "2015-06-10"))   
+                       "2015-06-10"))
     # This is a bit tricky because we have monthly values and need to get water-year (Oct-Sept) sums.
     d = pd.read_table(DATACACHE + "nat_bias_adjusted_vic_streamflow_monthly_historical.dat",
                       delim_whitespace = True, skiprows = 1, 
@@ -302,12 +292,15 @@ def main():
     wy = np.array([x.year for x in d["date"]])
     wy[msk] += 1
     d["wateryear"] = wy
+    n_seconds = d.date.apply(seconds_in_month)
+    d["value"] *= n_seconds
     d = d.groupby("wateryear").aggregate(np.sum)
     for r in d.to_records():
         wateryear = int(r[0])
         value = float(r[1])
         out["Gage"].append((gage_name, wateryear, value))
 
+    ##################################### NOT CERTAIN TRINITY IS CORRECT ######
     # "Trinity River at Lewiston, CA"
     # From http://cdec.water.ca.gov/cgi-progs/queryCSV?station_id=TNL&dur_code=M&sensor_num=65&start_date=5/25/1911&end_date=Now on 2014-02-12
     gage_name = "Trinity River at Lewiston, CA"
