@@ -339,3 +339,21 @@ def plot_many_hgt_composites(pc, yr, **kwargs):
 #     print(yr[quarts == "low"])
 #     print(yr[quarts == "high"])
 
+def globalweight_proportion(field, lat):
+    """Calculate the globally-weighted proportion of a binary field
+
+    Parameters:
+        field: ndarray
+            A 2D array of boolean values along an equally-spaced grid across a sphere.
+        lat: ndarray
+            A 2D array of latitude values (in decimal degrees) which correspond to values in `field`.
+
+    Returns: float
+        The proportion of True values in `field` over the entire area of the field.
+
+    Notes:
+        This applies sqrt(cos(lat)) weight to field values before calculating the proportion.
+    """
+    weights = np.sqrt(np.cos(np.deg2rad(lat)))
+    prop = (field * weights).sum()/(np.ones(field.shape) * weights).sum()
+    return prop
