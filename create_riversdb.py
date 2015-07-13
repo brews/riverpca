@@ -5,6 +5,7 @@
 import sqlite3 as sql
 import pandas as pd
 import numpy as np
+import datetime
 from calendar import monthrange
 
 DATACACHE = "./data/rivers/"
@@ -120,8 +121,7 @@ def main():
     # Sacramento Four Rivers Index, CA
     # From personal communication with Dave Meko on 2011-11-12.
     # 	Notes on the file WSIHist_SacSan.txt are available in WSIHist_Notes.txt.
-    #   A parsed version of WSIHist_SacSan.txt, including only the WY Index column,
-    #   WSIHist_SacSan-PARSED.txt.
+
     gage_name = "Sacramento Four Rivers Index"
     conversion_multiple = 39.0875156  # MAF/yr to m^3/s
 
@@ -184,6 +184,46 @@ def main():
             out["Gage"].append((gage_name, int(line[year_column]), int(line[gage_column]) * conversion_multiple))
         if line[recon_column] != nan:
             out["Recon"].append((gage_name, int(line[year_column]), int(line[recon_column]) * conversion_multiple))
+
+
+    # Missouri River at Toston, MT
+    # From personal communication with Connie Woodhouse on 2015-06-23
+    gage_name = "Missouri River at Toston, MT"
+    conversion_multiple = 0.0390875156  # KAF/yr to m^3/s
+
+    out["GageMeta"].append((gage_name,
+                         "Missouri River basin",
+                         "Missouri River",
+                         "m^3/s",
+                         46.146572,
+                         -111.420278,
+                         "From email personal communication with Connie Woodhouse.",  # Citation
+                         "There is no reconstruction for this gage.",  # Notes
+                         "",  # URL
+                         "2015-06-23"))
+    # This data is in monthly KAF so some conversion is needed before we can put this in the database.
+    d = pd.read_csv(DATACACHE + "Natural_Flows_Missouri_Toston.csv",
+                    skiprows = list(range(4)) + [5], index_col = 0)
+    del d["Total"]
+    d = d.unstack()
+    month = list(d.index.get_level_values(0)) # Note this is a list of strings.
+    year = np.array(d.index.get_level_values(1))
+    date = [datetime.datetime.strptime(str(x[0]) + x[1], "%Y%b") for x in zip(year, month)]
+    wy = year.copy()
+    month = [x.month for x in date] # This is now a list of ints.
+    msk = np.array([x in (10, 11, 12) for x in month])
+    wy[msk] += 1
+    d = pd.DataFrame({"value" : np.array(d),
+                      # "year"  : year,
+                      # "month" : month,
+                      "wateryear" : wy})
+    d = d.groupby("wateryear").aggregate(np.sum)
+    d = d[d.index.values != 2003]  # Because 2003 is not a complete year.
+    d.value *= conversion_multiple
+    for r in d.to_records():
+        wateryear = int(r[0])
+        value = float(r[1])
+        out["Gage"].append((gage_name, wateryear, value))
 
 
     # South Platte River at South Platte, CO
