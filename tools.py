@@ -15,6 +15,7 @@ import pylab as plt
 from mpl_toolkits.basemap import Basemap
 
 class Date(datetime.date):
+    # TODO: Is this used?
     def __init__(self, *args, **kwargs):
         super().__init__()
         if self.month in (10, 11, 12):
@@ -201,17 +202,69 @@ def plot_pearson(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world
         axes.flat[i].set_title("PC " + str(i + 1))
     return fig
 
+# def pearson_corr(x, field):
+#     """Pearson correlation between a 1D time series `x` and field array `f` (with 3 dimensions, the first is time)"""
+#     field = field.copy()
+#     f_oldshape = field.shape
+#     field.shape = (f_oldshape[0], f_oldshape[1] * f_oldshape[2])
+#     r = np.empty((f_oldshape[1] * f_oldshape[2]))
+#     p = np.empty(r.shape)
+#     for i in range(field.shape[1]):
+#         r[i], p[i] = stats.pearsonr(x, field[:, i])
+#     r.shape = (f_oldshape[1], f_oldshape[2])
+#     p.shape = r.shape
+#     return r, p
+
 def pearson_corr(x, field):
-    """Pearson correlation between a 1D time series `x` and field array `f` (with 3 dimensions, the first is time)"""
+    """Pearson correlation with 2-sided t-test"""
+    field = field.copy()
     f_oldshape = field.shape
     field.shape = (f_oldshape[0], f_oldshape[1] * f_oldshape[2])
-    r = np.empty((f_oldshape[1] * f_oldshape[2]))
-    p = np.empty(r.shape)
-    for i in range(field.shape[1]):
-        r[i], p[i] = stats.pearsonr(x, field[:, i])
+    n = len(x)
+    df = n - 2
+    r = ((x[:, np.newaxis] * field).sum(axis = 0) - n * x.mean() * field.mean(axis = 0)) / (np.sqrt(np.sum(x**2) - n * x.mean()**2) * np.sqrt(np.sum(field**2, axis = 0) - n * field.mean(axis = 0)**2))
+    # r = max(min(r, 1.0), -1.0)
+    t = r * np.sqrt(df/(1 - r**2))
+    p = stats.betai(0.5*df, 0.5, df/(df+t*t))
+    # p = 1 - (stats.t.cdf(abs(t), df = df) - stats.t.cdf(-abs(t), df = df))
     r.shape = (f_oldshape[1], f_oldshape[2])
     p.shape = r.shape
     return r, p
+
+
+def globalweight_proportion(field, lat):
+    """Calculate the globally-weighted proportion of a binary field
+
+    Parameters:
+        field: ndarray
+            A 2D array of boolean values along an regularly-spaced grid across a sphere.
+        lat: ndarray
+            A 2D array of latitude values (in decimal degrees) which correspond to values in `field`.
+
+    Returns: float
+        The proportion of True values in `field` over the entire area of the field.
+
+    Notes:
+        This applies sqrt(cos(lat)) weight to field values before calculating the proportion.
+    """
+    weights = np.sqrt(np.cos(np.deg2rad(lat)))
+    prop = (field * weights).sum()/(np.ones(field.shape) * weights).sum()
+    return prop
+
+def pearson_field_sig_test(x, field, lat, local_alpha=0.05, nruns=500):
+    """pass"""
+    target_r, target_p = pearson_corr(x, field)
+    rejectnull_field = target_p <= local_alpha
+    target_proportion = globalweight_proportion(rejectnull_field, lat)
+    noise_proportion = np.zeros(nruns)
+    noise = np.random.normal(loc = np.mean(x), scale = np.std(x), 
+                             size = (nruns, len(x)))
+    for i in range(nruns):
+        noise_r, noise_p = pearson_corr(noise[i], field)
+        rejectnull_field = noise_p <= local_alpha
+        noise_proportion[i] = globalweight_proportion(rejectnull_field, lat)
+    return noise_proportion, target_proportion
+
 
 # def ttest_proportion_sig(a, b, alpha):
 #     """Returns the proportion of significant Welch's t-test results"""
@@ -338,22 +391,3 @@ def plot_many_hgt_composites(pc, yr, **kwargs):
 #     print("PC2 low+high:")
 #     print(yr[quarts == "low"])
 #     print(yr[quarts == "high"])
-
-def globalweight_proportion(field, lat):
-    """Calculate the globally-weighted proportion of a binary field
-
-    Parameters:
-        field: ndarray
-            A 2D array of boolean values along an equally-spaced grid across a sphere.
-        lat: ndarray
-            A 2D array of latitude values (in decimal degrees) which correspond to values in `field`.
-
-    Returns: float
-        The proportion of True values in `field` over the entire area of the field.
-
-    Notes:
-        This applies sqrt(cos(lat)) weight to field values before calculating the proportion.
-    """
-    weights = np.sqrt(np.cos(np.deg2rad(lat)))
-    prop = (field * weights).sum()/(np.ones(field.shape) * weights).sum()
-    return prop
