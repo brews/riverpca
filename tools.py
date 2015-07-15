@@ -65,7 +65,7 @@ def trender(x):
     return m
 
 def varimax(Phi, gamma = 1.0, q = 20, tol = 1e-6):
-    """ Varimax rotation of a 'loadings matrix', Phi. Output is (rotated loadings, rotation matrix). This is loosely based on the R stats library's varimax()."""
+    """ Varimax rotation of a 'loadings matrix', Phi. Output is (rotated loadings, rotation matrix). This is loosely based on the R stats library's varimax()"""
     pass
     # p,k = Phi.shape
     # R = np.eye(k)
@@ -216,7 +216,23 @@ def plot_pearson(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world
 #     return r, p
 
 def pearson_corr(x, field):
-    """Pearson correlation with 2-sided t-test"""
+    """Pearson correlation with 2-sided t-test
+
+    Parameters:
+        x: ndarray
+            A 1D array time series.
+        field: ndarray
+            A 3D array of field values. The first dimension of the array needs 
+            to be time.
+
+    Returns: (ndarray, ndarray)
+        A 2D array of Pearson correlation values and a 2D array of p-values.
+
+    Notes:
+        The p-values returned by this function are from a two-sided Student's 
+        t-distribution. The test is against the null hypothesis that the 
+        correlation is not significantly different from "0".
+    """
     field = field.copy()
     f_oldshape = field.shape
     field.shape = (f_oldshape[0], f_oldshape[1] * f_oldshape[2])
@@ -237,15 +253,19 @@ def globalweight_proportion(field, lat):
 
     Parameters:
         field: ndarray
-            A 2D array of boolean values along an regularly-spaced grid across a sphere.
+            A 2D array of boolean values along an regularly-spaced grid across 
+            a sphere.
         lat: ndarray
-            A 2D array of latitude values (in decimal degrees) which correspond to values in `field`.
+            A 2D array of latitude values (in decimal degrees) which 
+            correspond to values in `field`.
 
     Returns: float
-        The proportion of True values in `field` over the entire area of the field.
+        The proportion of True values in `field` over the entire area of the 
+        field.
 
     Notes:
-        This applies sqrt(cos(lat)) weight to field values before calculating the proportion.
+        This applies sqrt(cos(lat)) weight to field values before calculating 
+        the proportion.
     """
     weights = np.sqrt(np.cos(np.deg2rad(lat)))
     prop = (field * weights).sum()/(np.ones(field.shape) * weights).sum()
