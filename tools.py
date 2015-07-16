@@ -7,12 +7,15 @@ import sqlite3
 import string
 from calendar import monthrange
 import datetime
+import itertools
+import random
 import numpy as np
 import pandas as pd
 # from numpy.linalg import svd
 import scipy.stats as stats
 import pylab as plt
 from mpl_toolkits.basemap import Basemap
+
 
 class Date(datetime.date):
     # TODO: Is this used?
@@ -239,14 +242,15 @@ def pearson_corr(x, field):
     n = len(x)
     df = n - 2
     r = ((x[:, np.newaxis] * field).sum(axis = 0) - n * x.mean() * field.mean(axis = 0)) / (np.sqrt(np.sum(x**2) - n * x.mean()**2) * np.sqrt(np.sum(field**2, axis = 0) - n * field.mean(axis = 0)**2))
-    # r = max(min(r, 1.0), -1.0)
+    # TODO: Need to ensure that R is between -1 and 1. This is from float-point rounding errors.
+    r[r > 1] = 1
+    r[r < -1] = -1
     t = r * np.sqrt(df/(1 - r**2))
     p = stats.betai(0.5*df, 0.5, df/(df+t*t))
     # p = 1 - (stats.t.cdf(abs(t), df = df) - stats.t.cdf(-abs(t), df = df))
     r.shape = (f_oldshape[1], f_oldshape[2])
     p.shape = r.shape
     return r, p
-
 
 def globalweight_proportion(field, lat):
     """Calculate the globally-weighted proportion of a binary field
@@ -271,7 +275,7 @@ def globalweight_proportion(field, lat):
     prop = (field * weights).sum()/(np.ones(field.shape) * weights).sum()
     return prop
 
-def pearson_field_sig_test(x, field, lat, local_alpha=0.05, nruns=500):
+def pearson_fieldsig_test(x, field, lat, local_alpha=0.05, nruns=500):
     """pass"""
     target_r, target_p = pearson_corr(x, field)
     rejectnull_field = target_p <= local_alpha
@@ -285,39 +289,101 @@ def pearson_field_sig_test(x, field, lat, local_alpha=0.05, nruns=500):
         noise_proportion[i] = globalweight_proportion(rejectnull_field, lat)
     return noise_proportion, target_proportion
 
+def random_combination(iterable, r):
+    """Random selection from itertools.combinations(iterable, r)"""
+    pool = tuple(iterable)
+    n = len(pool)
+    indices = sorted(random.sample(range(n), r))
+    return tuple(pool[i] for i in indices)
 
-# def ttest_proportion_sig(a, b, alpha):
-#     """Returns the proportion of significant Welch's t-test results"""
-#     #TODO: This needs to give percent of area that is significant, weighting
-#     #      the grid by it's latitude.
-#     t, p = stats.ttest_ind(a, b, equal_var = False)
-#     # return (p <= alpha).sum()/p.size, t, p
-#     pass
+def ttest_fieldsig_test(x, field, lat, local_alpha=0.05, nruns=500):
+    """pass"""
+    dif, target_p = composite_ttest(x, field)
+    n = len(x)
+    n_high = np.sum(cut_divisions(x))
+    n_low = n - n_high
 
-# def build_composite(series, yr, field, divisions=2):
-#     """Return SST or Z field composites for extreme ends of a time series"""
-#     labs = list(string.ascii_lowercase)[:divisions]
-#     quarts = pd.qcut(series, np.linspace(0, 1, divisions + 1), labels = labs)
-#     composite = {"low": field[(quarts == labs[0])],
-#                  "high": field[(quarts == labs[-1])]}
-#     years = {"low": yr[(quarts == labs[0])],
-#              "high": yr[(quarts == labs[-1])]}
-#     return composite, years
+    rejectnull_field = target_p <= local_alpha
+    target_proportion = globalweight_proportion(rejectnull_field, lat)
+    noise_proportion = np.zeros(nruns)
+    id_list = list(range(n))
+    for i in range(nruns):
+        high_targets = list(random_combination(id_list, n_high))
+        high_mask = np.zeros(x.shape, dtype = bool)
+        high_mask[high_targets] = True
+        test_t, test_p = ttest(field, high_mask)
+        rejectnull_field = test_p <= local_alpha
+        noise_proportion[i] = globalweight_proportion(rejectnull_field, lat)
+    return noise_proportion, target_proportion
 
-# def composite_mc_ttest(series, yr, field, alpha=0.1, nruns=500, divisions=4):
-#     """Field significance for Welch's t-test of field composites"""
-#     composite, years = field_composite(series, yr, field)
-#     proportion_sig, t, p = ttest_proportion_sig(composite["high"], composite["low"], alpha = alpha)
-#     low_bound = len(years["high"])
-#     high_bound = low_bound + len(years["low"])
-#     mc_props = np.zeros(nruns)
-#     for i in range(nruns):
-#         draw = np.random.permutation(field.shape[0])
-#         population_a = field[draw[:low_bound]]
-#         population_b = field[draw[low_bound:high_bound]]
-#         mc_props[i] = ttest_proportion_sig(population_a, population_b, alpha)
-#     return p, stats.percentileofscore(mc_props, proportion_sig, kind = "rank")
+def cut_divisions(x):
+    """Return bool array indicating whether observations are in the 'high' composite"""
+    return (x > 0)
 
+def ttest(x, msk):
+    """Apply bool mask to x and Welch's t-test the mask results and it's inverse"""
+    t, p = stats.ttest_ind(x[msk], x[~msk], equal_var = False)
+    return (t, p)
+
+def composite_ttest(x, field):
+    """2-sided t-test for composites
+
+    Parameters:
+        x: ndarray
+            A 1D array time series.
+        field: ndarray
+            A 3D array of field values. The first dimension of the array needs 
+            to be time.
+
+    Returns: (ndarray, ndarray)
+        A 2D array of difference and a 2D array of p-values.
+
+    Notes:
+        The p-values returned by this function are from a two-sided Student's 
+    """
+    divisions_high = cut_divisions(x)
+    t, p = ttest(field, divisions_high)
+    dif = np.mean(field[divisions_high], 0) - np.mean(field[~divisions_high], 0)
+    return dif, p
+
+def plot_ttest(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world_map = False):
+    """Plot composite t-tests fields of nmodes."""
+    pc = x.pcs(npcs = nmodes, pcscaling = 1)
+    fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1)
+    for i in range(nmodes):
+        dif, p = composite_ttest(pc[:, i], field)
+        if np.any(msk):
+            p = np.ma.masked_array(p, msk)
+        sig_points = np.ma.masked_array(p, ~(p <= alpha))
+        m = None
+        if world_map:
+            m = Basemap(ax = axes.flat[i], projection = "robin", lon_0 = 180, resolution = "c")
+        else:
+            m = Basemap(ax = axes.flat[i], projection = 'npstere', boundinglat = 20, lon_0 = 210, resolution='c')
+        xlon, ylat = m(lon, lat)
+        m.drawcoastlines(color = "#696969")
+        m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
+        m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
+        ct = m.contour(xlon, ylat, dif, colors = "k")
+        plt.clabel(ct, fontsize = 10, inline = 1, fmt = "%1.0f")
+        m.contourf(xlon, ylat, sig_points, 0)
+        axes.flat[i].set_title("+/- PC" + str(i + 1) + " composite difference")
+    return fig
+
+def plot_fieldsig(x, star, alpha=0.2, nbins=25):
+    """pass"""
+    x.sort()
+    fig = plt.figure(figsize = (3, 3))
+    plt.hist(x, bins = nbins, histtype = "stepfilled")
+    plt.axvline(x = x[- alpha * len(x)], linestyle = ":")
+    plt.axvline(x = star, color = "red")
+    plt.annotate('', xy = (star, 35), 
+                xytext = (star, 60), 
+                arrowprops = dict(facecolor = 'blue', shrink = 0.05))
+    plt.xlabel('Proportion significant')
+    plt.ylabel('Count')
+    plt.xlim(0, np.max(np.max(x), star))
+    return fig
 
 def plot_hgt_composite(field, lat, lon, msk, use_ax = None, plot_title=None, 
                        contour_divs=None, fill_min=None, fill_max=None):
@@ -360,54 +426,3 @@ def plot_many_hgt_composites(pc, yr, **kwargs):
         plot_hgt_composite(msk = target_mask, use_ax = axes.flat[i], 
                            plot_title = title_str, contour_divs = intervals, **kwargs)
     return fig
-
-    # wings = np.max([np.absolute([x.min() for x in ), np.absolute(composit_anoms.max())])
-#     # Composite map of NDJ mean 500 mb height anomalies.
-#     erai = np.load(ERAI_PATH)
-#     msk_time = (erai["time"] >= SHORTCALYEAR_LOW + 1) & (erai["time"] <= SHORTCALYEAR_HIGH)
-#     hgts = erai["data"][0, 1, msk_time]
-# 
-#     # First dim is PC, second is 0 -> low, 1 -> high:
-#     quarts = pd.qcut(series, [0, 0.33, 0.66, 1], labels = ["low", "mid", "high"])
-#     composite_low = np.mean(hgts[(quarts == "low")], 0)
-#     composite_high = np.mean(hgts[(quarts == "high")], 0)
-# 
-#     wings = np.max([np.absolute(composit_anoms.min()), np.absolute(composit_anoms.max())])
-#     divs = np.linspace(-wings, wings, 21)
-#     divs2 = np.linspace(-wings, wings, 11)
-#     fig, axes = plt.subplots(figsize = (8, 7.5), nrows = 2, ncols = 1)
-#     for i in range(2):
-#         m = Basemap(ax = axes.flat[i], projection = 'npstere', boundinglat = 20, lon_0 = 210, resolution='c')
-#         x, y = m(field["lon"], field["lat"])
-#         m.drawcoastlines(color = "#696969")
-#         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
-#         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-#     #     m.contour(x, y, composit_anoms[0, i], divs2, colors = "k")
-#         pcol = m.contourf(x, y, composit_anoms[0, i], divs, cmap = plt.cm.RdBu_r)
-#         cb = m.colorbar(pcol)
-#         cb.set_label("Anomaly mean (m)")
-#         axes.flat[i].set_title(("Low", "High")[i]+" PC 1" + " ERA-I 500mb NDJ composit")
-#     plt.show()
-#         
-#     fig, axes = plt.subplots(figsize = (8, 7.5), nrows = 2, ncols = 1)
-#     for i in range(2):
-#         m = Basemap(ax = axes.flat[i], projection = 'npstere', boundinglat = 20, lon_0 = 210, resolution='c')
-#         x, y = m(field["lon"], field["lat"])
-#         m.drawcoastlines(color = "#696969")
-#         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
-#         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-#     #     m.contour(x, y, composit_anoms[1, i], divs2, colors = "k")
-#         pcol = m.contourf(x, y, composit_anoms[1, i], divs, cmap = plt.cm.RdBu_r)
-#         cb = m.colorbar(pcol)
-#         cb.set_label("Anomaly mean (m)")    
-#         axes.flat[i].set_title(("Low", "High")[i]+" PC 2" + " ERA-I 500mb NDJ composit")
-#     plt.show()
-# 
-#     quarts = pd.qcut(pc[:, 0], [0, 0.33, 0.66, 1], labels = ["low", "mid", "high"])
-#     print("PC1 low+high:")
-#     print(yr[quarts == "low"])
-#     print(yr[quarts == "high"])
-#     quarts = pd.qcut(pc[:, 1], [0, 0.33, 0.66, 1], labels = ["low", "mid", "high"])
-#     print("PC2 low+high:")
-#     print(yr[quarts == "low"])
-#     print(yr[quarts == "high"])
