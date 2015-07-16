@@ -141,7 +141,7 @@ def plot_eof(x, lat, lon, nmodes=10):
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
     fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1)
-    divs = np.linspace(np.floor(eof.min()), np.ceil(eof.max()), 21)
+    divs = np.linspace(np.floor(eof.min()), np.ceil(eof.max()), 11)
     for i in range(nmodes):
         m = Basemap(ax = axes.flat[i], width = 2000000, height = 2300000, 
                     resolution = 'l', projection = 'stere', 
@@ -175,7 +175,7 @@ def plot_gagesmap(lat, lon):
     m.drawparallels(parallels, labels = [True, False, True, False], color = "#333333")
     meridians = np.arange(10., 351., 10)
     m.drawmeridians(meridians, labels = [False, True, False, True], color = "#333333")
-    m.scatter(lon, lat, s = 30, marker = 'o', latlon = True, facecolors = "none", edgecolors='r')
+    m.scatter(lon, lat, s = 30, lw = 1, marker = 'o', latlon = True, facecolors = "none", edgecolors='r')
     plt.title("n = " + str(len(lon)))
     return fig
 
@@ -183,7 +183,7 @@ def plot_pearson(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world
     """Plot pearson correlations of "nmodes."""
     pc = x.pcs(npcs = nmodes, pcscaling = 1)
     fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1)
-    divs = np.linspace(-1, 1, 21)
+    divs = np.linspace(-1, 1, 11)
     for i in range(nmodes):
         r, p = pearson_corr(pc[:, i], field.copy())
         if np.any(msk):
@@ -199,7 +199,7 @@ def plot_pearson(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world
         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
         ctf1 = m.contourf(x, y, r, divs, cmap = plt.cm.RdBu_r)
-        ctf2 = m.contour(x, y, p, alpha, colors = "k")
+        ctf2 = m.contour(x, y, p, alpha, colors = "k", linewidths = 1.5)
         cb = m.colorbar(ctf1)
         cb.set_label("r")
         axes.flat[i].set_title("PC " + str(i + 1))
@@ -375,11 +375,11 @@ def plot_fieldsig(x, star, alpha=0.2, nbins=25):
     x.sort()
     fig = plt.figure(figsize = (3, 3))
     plt.hist(x, bins = nbins, histtype = "stepfilled")
-    plt.axvline(x = x[- alpha * len(x)], linestyle = ":")
+    plt.axvline(x = x[- alpha * len(x)], linestyle = ":", color = "black")
     plt.axvline(x = star, color = "red")
-    plt.annotate('', xy = (star, 35), 
-                xytext = (star, 60), 
-                arrowprops = dict(facecolor = 'blue', shrink = 0.05))
+    # plt.annotate('', xy = (star, 35), 
+                # xytext = (star, 60), 
+                # arrowprops = dict(facecolor = 'blue', shrink = 0.05))
     plt.xlabel('Proportion significant')
     plt.ylabel('Count')
     plt.xlim(0, np.max(np.max(x), star))
