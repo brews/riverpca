@@ -154,7 +154,7 @@ def plot_eof(x, lat, lon, nmodes=10):
         ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu_r, tri = True)
         cb = m.colorbar(ctf1)
         cb.set_label("cov")
-        m.scatter(x, y, facecolors = "none", edgecolor = "k")
+        m.scatter(x, y, facecolors = "none", edgecolor = "k", lw = 1)
         axes.flat[i].set_title("EOF " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
     return fig
 
@@ -364,7 +364,7 @@ def plot_ttest(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world_m
         m.drawcoastlines(color = "#696969")
         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-        ct = m.contour(xlon, ylat, dif, colors = "k")
+        ct = m.contour(xlon, ylat, dif, colors = "k", linewidths = 1)
         plt.clabel(ct, fontsize = 10, inline = 1, fmt = "%1.0f")
         m.contourf(xlon, ylat, sig_points, 0)
         axes.flat[i].set_title("+/- PC" + str(i + 1) + " composite difference")
