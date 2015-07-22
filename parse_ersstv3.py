@@ -24,19 +24,28 @@ year_min = min([i.year for i in dates])
 year_max = max([i.year for i in dates])
 year_range = np.arange(year_min + 1, year_max)
 
-out = np.empty((2, len(year_range), raw.variables["sst"].shape[-2], raw.variables["sst"].shape[-1]))
+out = np.empty((4, len(year_range), raw.variables["sst"].shape[-2], raw.variables["sst"].shape[-1]))
 for j in range(len(year_range)):
     yr = year_range[j]
     time.append(yr)
     msk_ndj = []
     msk_fma = []
+    msk_aso = [] # Antecedent fall
+    msk_mjj = [] # Antecedent summer
     for d in range(len(dates)):
         if (dates[d] == datetime.datetime(yr - 1, 11, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 12, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 1, 1, 0, 0)):
             msk_ndj.append(d)
         if (dates[d] == datetime.datetime(yr, 2, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 3, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 4, 1, 0, 0)):
             msk_fma.append(d)
+        if (dates[d] == datetime.datetime(yr - 1, 8, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 9, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 10, 1, 0, 0)):
+            msk_aso.append(d)
+        if (dates[d] == datetime.datetime(yr - 1, 5, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 6, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 7, 1, 0, 0)):
+            msk_mjj.append(d)
     out[0, j, :, :] = np.mean(raw.variables["sst"][msk_ndj], 0)
     out[1, j, :, :] = np.mean(raw.variables["sst"][msk_fma], 0)
+    out[2, j, :, :] = np.mean(raw.variables["sst"][msk_aso], 0)
+    out[3, j, :, :] = np.mean(raw.variables["sst"][msk_mjj], 0)
+
 
 landmask = out[0, 0] == 0
 np.savez_compressed(OUT_FILE, data = out, lat = lat, lon = lon, time = time, landmask = landmask)
