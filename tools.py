@@ -14,6 +14,7 @@ import pandas as pd
 # from numpy.linalg import svd
 import scipy.stats as stats
 import pylab as plt
+import matplotlib as mpl
 from mpl_toolkits.basemap import Basemap
 
 
@@ -136,11 +137,13 @@ def plot_vectormap(coef1, coef2, lat, lon):
     m.scatter(x, y, facecolors = "none", edgecolor = "k")
     return fig
 
-def plot_eof(x, lat, lon, nmodes=10):
+def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
     """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
-    fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1)
+    fig, axes = plt.subplots(figsize = figure_size, 
+                             nrows = nmodes, ncols = 1, 
+                             sharex = True, sharey = True)
     divs = np.linspace(np.floor(eof.min()), np.ceil(eof.max()), 11)
     for i in range(nmodes):
         m = Basemap(ax = axes.flat[i], width = 2000000, height = 2300000, 
@@ -151,11 +154,16 @@ def plot_eof(x, lat, lon, nmodes=10):
         m.drawcoastlines(linewidth = 0.7, color = "#696969")
         m.drawstates(linewidth = 0.7, color = "#696969")
         m.drawcountries(linewidth = 0.7, color = "#696969")
-        ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu_r, tri = True)
-        cb = m.colorbar(ctf1)
-        cb.set_label("cov")
+        parallels = np.arange(0., 81, 10)
+        m.drawparallels(parallels, labels = [True, False, False, False], color = "#333333")
+        meridians = np.arange(10., 351., 10)
+        m.drawmeridians(meridians, labels = [False, False, False, True], color = "#333333")
+        ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu, tri = True)
         m.scatter(x, y, facecolors = "none", edgecolor = "k", lw = 1)
-        axes.flat[i].set_title("EOF " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
+        axes.flat[i].set_title("PC " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
+    cax, kw = mpl.colorbar.make_axes([ax for ax in axes.flat])
+    cb = plt.colorbar(ctf1, cax = cax, **kw)
+    cb.set_label("cov")
     return fig
 
 def plot_gagesmap(lat, lon):
