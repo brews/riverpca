@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 # from numpy.linalg import svd
 import scipy.stats as stats
+import seaborn as sns
 import pylab as plt
 import matplotlib as mpl
 from mpl_toolkits.basemap import Basemap
@@ -141,7 +142,7 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
     """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
-    fig, axes = plt.subplots(figsize = figure_size, 
+    fig, axes = plt.subplots(figsize = figure_size,
                              nrows = nmodes, ncols = 1, 
                              sharex = True, sharey = True)
     divs = np.linspace(np.floor(eof.min()), np.ceil(eof.max()), 11)
@@ -160,9 +161,14 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
         m.drawmeridians(meridians, labels = [False, False, False, True], color = "#333333")
         ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu, tri = True)
         m.scatter(x, y, facecolors = "none", edgecolor = "k", lw = 1)
-        axes.flat[i].set_title("PC " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
-    cax, kw = mpl.colorbar.make_axes([ax for ax in axes.flat])
-    cb = plt.colorbar(ctf1, cax = cax, **kw)
+        title_str = "PC" + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)"
+        axes.flat[i].set_title(title_str, loc = "left")
+    # cax, kw = mpl.colorbar.make_axes([ax for ax in axes.flat])
+    # cb = plt.colorbar(ctf1, cax = cax, **kw)
+    # fig.tight_layout()
+    fig.subplots_adjust(bottom = 0.15)
+    cax = fig.add_axes([0.17, 0.1, 0.7, 0.01])
+    cb = plt.colorbar(ctf1, cax = cax, orientation = 'horizontal')
     cb.set_label("cov")
     return fig
 
@@ -206,7 +212,7 @@ def plot_pearson(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world
         m.drawcoastlines(color = "#696969")
         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-        ctf1 = m.contourf(x, y, r, divs, cmap = plt.cm.RdBu_r)
+        ctf1 = m.contourf(x, y, r, divs, cmap = plt.cm.RdBu)
         ctf2 = m.contour(x, y, p, alpha, colors = "k", linewidths = 1.5)
         cb = m.colorbar(ctf1)
         cb.set_label("r")
@@ -354,15 +360,20 @@ def composite_ttest(x, field):
     dif = np.mean(field[divisions_high], 0) - np.mean(field[~divisions_high], 0)
     return dif, p
 
-def plot_ttest(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world_map = False):
+def plot_ttest(x, field, lat, lon, nmodes=10, alpha=0.05, msk=False, world_map=False, figure_size=(9.5, 6.5)):
     """Plot composite t-tests fields of nmodes."""
     pc = x.pcs(npcs = nmodes, pcscaling = 1)
-    fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1)
+    fig, axes = plt.subplots(figsize = figure_size, nrows = nmodes, ncols = 1)
+    dif = np.empty((nmodes,) + field.shape[1:])
+    p = np.empty(dif.shape)
     for i in range(nmodes):
-        dif, p = composite_ttest(pc[:, i], field)
+        dif[i], p[i] = composite_ttest(pc[:, i], field)
         if np.any(msk):
-            p = np.ma.masked_array(p, msk)
-        sig_points = np.ma.masked_array(p, ~(p <= alpha))
+            p[i] = np.ma.masked_array(p[i], msk)
+    max_dif = np.round(np.max([np.abs(np.floor(dif.min())), np.ceil(dif.max())]))
+    divs = np.linspace(-max_dif, max_dif, 11)
+    for i in range(nmodes):
+        sig_points = np.ma.masked_array(p[i], ~(p[i] <= alpha))
         m = None
         if world_map:
             m = Basemap(ax = axes.flat[i], projection = "robin", lon_0 = 180, resolution = "c")
@@ -372,10 +383,14 @@ def plot_ttest(x, field, lat, lon, nmodes=10, alpha=[0.05], msk = False, world_m
         m.drawcoastlines(color = "#696969")
         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-        ct = m.contour(xlon, ylat, dif, colors = "k", linewidths = 1)
-        plt.clabel(ct, fontsize = 10, inline = 1, fmt = "%1.0f")
-        m.contourf(xlon, ylat, sig_points, 0)
-        axes.flat[i].set_title("+/- PC" + str(i + 1) + " composite difference")
+        # m.contourf(xlon, ylat, sig_points, 0, colors = mpl.colors.rgb2hex(sns.color_palette("colorblind")[0]), alpha = 0.5)
+        m.contourf(xlon, ylat, sig_points, 0, colors = mpl.colors.rgb2hex(sns.color_palette("colorblind")[-1]))
+        # ctf1 = m.contourf(xlon, ylat, dif[i], divs, cmap = plt.cm.RdBu)
+        # ctf2 = m.contour(xlon, ylat, p[i], alpha, colors = "k", linewidths = 1.5)
+        # cb = m.colorbar(ctf1)
+        # cb.set_label(cbar_lab)
+        axes.flat[i].set_title("PC" + str(i + 1), loc = "left")
+    fig.tight_layout()
     return fig
 
 def plot_fieldsig(x, star, alpha=0.2, nbins=25):
