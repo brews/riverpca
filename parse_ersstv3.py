@@ -28,23 +28,23 @@ out = np.empty((4, len(year_range), raw.variables["sst"].shape[-2], raw.variable
 for j in range(len(year_range)):
     yr = year_range[j]
     time.append(yr)
-    msk_ndj = []
-    msk_fma = []
-    msk_aso = [] # Antecedent fall
-    msk_mjj = [] # Antecedent summer
+    msk_djf = []
+    msk_mam = []
+    msk_son = [] # Antecedent fall
+    msk_jja = [] # Antecedent summer
     for d in range(len(dates)):
-        if (dates[d] == datetime.datetime(yr - 1, 11, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 12, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 1, 1, 0, 0)):
-            msk_ndj.append(d)
-        if (dates[d] == datetime.datetime(yr, 2, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 3, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 4, 1, 0, 0)):
-            msk_fma.append(d)
-        if (dates[d] == datetime.datetime(yr - 1, 8, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 9, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 10, 1, 0, 0)):
-            msk_aso.append(d)
-        if (dates[d] == datetime.datetime(yr - 1, 5, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 6, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 7, 1, 0, 0)):
-            msk_mjj.append(d)
-    out[0, j, :, :] = np.mean(raw.variables["sst"][msk_ndj], 0)
-    out[1, j, :, :] = np.mean(raw.variables["sst"][msk_fma], 0)
-    out[2, j, :, :] = np.mean(raw.variables["sst"][msk_aso], 0)
-    out[3, j, :, :] = np.mean(raw.variables["sst"][msk_mjj], 0)
+        if (dates[d] == datetime.datetime(yr - 1, 12, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 1, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 2, 1, 0, 0)):
+            msk_djf.append(d)
+        if (dates[d] == datetime.datetime(yr, 3, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 4, 1, 0, 0)) or (dates[d] == datetime.datetime(yr, 5, 1, 0, 0)):
+            msk_mam.append(d)
+        if (dates[d] == datetime.datetime(yr - 1, 9, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 10, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 11, 1, 0, 0)):
+            msk_son.append(d)
+        if (dates[d] == datetime.datetime(yr - 1, 6, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 7, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 8, 1, 0, 0)):
+            msk_jja.append(d)
+    out[0, j, :, :] = np.mean(raw.variables["sst"][msk_djf], 0)
+    out[1, j, :, :] = np.mean(raw.variables["sst"][msk_mam], 0)
+    out[2, j, :, :] = np.mean(raw.variables["sst"][msk_son], 0)
+    out[3, j, :, :] = np.mean(raw.variables["sst"][msk_jja], 0)
 
 
 landmask = out[0, 0] == 0
