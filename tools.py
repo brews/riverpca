@@ -161,7 +161,7 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
         m.drawmeridians(meridians, labels = [False, False, False, True], color = "#333333")
         ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu, tri = True)
         m.scatter(x, y, facecolors = "none", edgecolor = "k", lw = 1)
-        title_str = "PC" + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)"
+        title_str = string.ascii_lowercase[i] + ") PC" + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)"
         axes.flat[i].set_title(title_str, loc = "left")
     # cax, kw = mpl.colorbar.make_axes([ax for ax in axes.flat])
     # cb = plt.colorbar(ctf1, cax = cax, **kw)
@@ -389,7 +389,7 @@ def plot_ttest(x, field, lat, lon, nmodes=10, alpha=0.05, msk=False, world_map=F
         # ctf2 = m.contour(xlon, ylat, p[i], alpha, colors = "k", linewidths = 1.5)
         # cb = m.colorbar(ctf1)
         # cb.set_label(cbar_lab)
-        axes.flat[i].set_title("PC" + str(i + 1), loc = "left")
+        axes.flat[i].set_title(string.ascii_lowercase[i] + ") PC" + str(i + 1), loc = "left")
     fig.tight_layout()
     return fig
 
