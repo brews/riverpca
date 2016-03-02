@@ -370,8 +370,8 @@ def plot_ttest(x, field, lat, lon, nmodes=10, alpha=0.05, msk=False, world_map=F
         dif[i], p[i] = composite_ttest(pc[:, i], field)
         if np.any(msk):
             p[i] = np.ma.masked_array(p[i], msk)
-    max_dif = np.round(np.max([np.abs(np.floor(dif.min())), np.ceil(dif.max())]))
-    divs = np.linspace(-max_dif, max_dif, 11)
+    # max_dif = np.round(np.max([np.abs(np.floor(dif.min())), np.ceil(dif.max())]))
+    # divs = np.linspace(-max_dif, max_dif, 11)
     for i in range(nmodes):
         sig_points = np.ma.masked_array(p[i], ~(p[i] <= alpha))
         m = None
@@ -383,12 +383,7 @@ def plot_ttest(x, field, lat, lon, nmodes=10, alpha=0.05, msk=False, world_map=F
         m.drawcoastlines(color = "#696969")
         m.drawparallels(np.arange(-90, 110, 20), color = "#696969")
         m.drawmeridians(np.arange(0, 360, 60), color = "#696969")
-        # m.contourf(xlon, ylat, sig_points, 0, colors = mpl.colors.rgb2hex(sns.color_palette("colorblind")[0]), alpha = 0.5)
         m.contourf(xlon, ylat, sig_points, 0, colors = mpl.colors.rgb2hex(sns.color_palette("colorblind")[-1]))
-        # ctf1 = m.contourf(xlon, ylat, dif[i], divs, cmap = plt.cm.RdBu)
-        # ctf2 = m.contour(xlon, ylat, p[i], alpha, colors = "k", linewidths = 1.5)
-        # cb = m.colorbar(ctf1)
-        # cb.set_label(cbar_lab)
         axes.flat[i].set_title(string.ascii_lowercase[i] + ") PC" + str(i + 1), loc = "left")
     fig.tight_layout()
     return fig
