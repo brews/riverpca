@@ -38,7 +38,7 @@ SCHEMA_STRING = """
                                dd INTEGER,
                                locweb TEXT,
                                year INTEGER,
-                               mean REAL,
+                               meanCFS REAL,
                                count INTEGER,
                                FOREIGN KEY (stationid) REFERENCES StationInfo(stationid));
             DROP TABLE IF EXISTS StationMonthly;
@@ -50,7 +50,7 @@ SCHEMA_STRING = """
                                locweb TEXT,
                                year INTEGER,
                                month INTEGER,
-                               mean REAL,
+                               meanCFS REAL,
                                count INTEGER,
                                wy INTEGER,
                                FOREIGN KEY (stationid) REFERENCES StationInfo(stationid));
