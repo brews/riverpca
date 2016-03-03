@@ -62,6 +62,11 @@ def spigamma(x):
     g_fit = q + (1 - q) * stats.gamma.cdf(x, a = g_shape, scale = g_scale)
     return stats.norm.ppf(g_fit)
 
+def zscore(x):
+    """Standardize data into a Z-score"""
+    # Use with pandas transform(), like spigamma.
+    return (x - x.mean()) / x.std()
+
 def trender(x):
     """Get the linear trend coef of a data series."""
     # Use with pandas apply()
