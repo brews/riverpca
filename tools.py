@@ -53,6 +53,14 @@ def check_monthly(dbpath, yearlow, yearhigh, westoflon=-104, eastoflon=-125):
     conn.close()
     return candidate_pass
 
+def adj_gamma_kstest(x):
+    """Get p-values of KS-test for adjusted-gamma fit on series x
+    """
+    # Use with pandas aggregate()?
+    x_adj = x + 0.000001
+    gfit = stats.gamma.fit(x_adj, floc = 0) # This should deal with 0 values?
+    return stats.kstest(x_adj, lambda a: stats.gamma.cdf(a, *gfit))[1] # [1] should return pvalue.
+
 def spigamma(x):
     """Transform data like SPI after fitting a gamma function"""
     # Use with pandas transform().
