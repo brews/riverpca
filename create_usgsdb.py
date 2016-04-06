@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-# 2015-02-26
+# 2016-03-06
 
 #UCDN-2009 site http://water.usgs.gov/osw/hcdn-2009/
 
@@ -93,13 +93,10 @@ def get_monthly(x, skip_lines=0):
           continue
         line = line.decode("utf-8")
         line = line.rstrip().strip().split("\t")
-        # print("DEBUG")  # DEBUG
-        # print(line)  # DEBUG
         wy = int(line[5])
         if int(line[6]) >= 10:
           wy += 1
         line.append(str(wy))
-        # print(tuple(line))  # DEBUG
         yield(tuple(line))
 
 def get_wateryear(x, skip_lines=0):
@@ -128,7 +125,6 @@ def main():
         # For whatever reason some of the station IDs are missing a "0".
         if len(line[0]) == 7:
             line[0] = "0" + line[0]
-        print("Processing station: " + line[0])  # DEBUG
         wy_file = get_wateryear(line[0], WY_LINE_SKIP)
         for l in wy_file:
             out["StationWY"].append(l)
@@ -136,7 +132,6 @@ def main():
         for l in monthly_file:
             out["StationMonthly"].append(l)
         out["StationInfo"].append(tuple(line))
-        print("Station complete.")  # DEBUG
 
     # Rewritting database tables and inserting data.
     create_database(DB_PATH, out, SCHEMA_STRING)
