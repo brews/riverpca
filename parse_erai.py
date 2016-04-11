@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 
-# 2015-01-15
+# 2016-04-11
 # Parse ERA-Interim files in `ERA_PATH` into 
 # winter and spring seasonal averages for pressure heights `LEVEL_TARGETS`. 
-# A numpy array is sent to `OUT_FILE`. It's structure is # Dim 1 is [NDJ, FMA],
-# dim 2 is levels [700, 500, 250], dim 3 is year, dim 4 is lat, dim 5 is lon.
+# A numpy array is sent to `OUT_FILE`. It's structure is # Dim 1 is
+# [DJF, MAM, SON (yr - 1), JJA (yr - 1)], dim 2 is levels [700, 500, 250], 
+# dim 3 is year, dim 4 is lat, dim 5 is lon.
 
 # This is poorly written but it's run once or twice. It will do for now.
 
@@ -29,32 +30,55 @@ lat, lon = test.select(name = "Geopotential", level = 500, typeOfLevel = "isobar
 grid_size = lat.shape
 test.close()
 time = []
-# Dim 1 is [NDJ, FMA], dim 2 is levels [700, 500, 250], dim 3 is year, dim 4 is lat, dim 5 is lon:
-out = np.empty((2, len(LEVEL_TARGETS), len(year_range), grid_size[0], grid_size[1]))
+out = np.empty((4, len(LEVEL_TARGETS), len(year_range), grid_size[0], grid_size[1]))
 for j in range(len(year_range)):
     yr = year_range[j]
+    print(yr)  # DEBUG
     time.append(yr)
-    ndj = []
-    ndj.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "11" + "0100")
-    ndj.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "12" + "0100")
-    ndj.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "01" + "0100")
+    djf = []
+    djf.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "12" + "0100")
+    djf.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "01" + "0100")
+    djf.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "02" + "0100")
     for i in range(len(LEVEL_TARGETS)):
         sandbox = np.empty((3, grid_size[0], grid_size[1]))
-        for n in range(len(ndj)):
-            fl = pygrib.open(ndj[n])
+        for n in range(len(djf)):
+            print(djf[n])  # DEBUG
+            fl = pygrib.open(djf[n])
             sandbox[n] = (fl.select(name = "Geopotential", level = LEVEL_TARGETS[i], typeOfLevel = "isobaricInhPa")[0].values / G_NOT)
             fl.close()
         out[0, i, j] = np.mean(sandbox, 0)
-    fma = []
-    fma.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "02" + "0100")
-    fma.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "03" + "0100")
-    fma.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "04" + "0100")
+    mam = []
+    mam.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "03" + "0100")
+    mam.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "04" + "0100")
+    mam.append(ERA_PATH + TARGET_FILE_ID + str(yr) + "05" + "0100")
     for i in range(len(LEVEL_TARGETS)):
         sandbox = np.empty((3, grid_size[0], grid_size[1]))
-        for n in range(len(fma)):
-            fl = pygrib.open(fma[n])
+        for n in range(len(mam)):
+            fl = pygrib.open(mam[n])
             sandbox[n] = (fl.select(name = "Geopotential", level = LEVEL_TARGETS[i], typeOfLevel = "isobaricInhPa")[0].values / G_NOT)
             fl.close()
         out[1, i, j] = np.mean(sandbox, 0)
+    son = []
+    son.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "09" + "0100")
+    son.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "10" + "0100")
+    son.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "11" + "0100")
+    for i in range(len(LEVEL_TARGETS)):
+        sandbox = np.empty((3, grid_size[0], grid_size[1]))
+        for n in range(len(son)):
+            fl = pygrib.open(son[n])
+            sandbox[n] = (fl.select(name = "Geopotential", level = LEVEL_TARGETS[i], typeOfLevel = "isobaricInhPa")[0].values / G_NOT)
+            fl.close()
+        out[2, i, j] = np.mean(sandbox, 0)
+    jja = []
+    jja.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "06" + "0100")
+    jja.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "07" + "0100")
+    jja.append(ERA_PATH + TARGET_FILE_ID + str(yr - 1) + "08" + "0100")
+    for i in range(len(LEVEL_TARGETS)):
+        sandbox = np.empty((3, grid_size[0], grid_size[1]))
+        for n in range(len(jja)):
+            fl = pygrib.open(jja[n])
+            sandbox[n] = (fl.select(name = "Geopotential", level = LEVEL_TARGETS[i], typeOfLevel = "isobaricInhPa")[0].values / G_NOT)
+            fl.close()
+        out[3, i, j] = np.mean(sandbox, 0)
 
 np.savez_compressed(OUT_FILE, data = out, lat = lat, lon = lon, time = time)
