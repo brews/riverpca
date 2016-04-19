@@ -158,7 +158,8 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
     fig, axes = plt.subplots(figsize = figure_size,
                              nrows = nmodes, ncols = 1, 
                              sharex = True, sharey = True)
-    divs = np.linspace(np.floor(eof.min()), np.ceil(eof.max()), 11)
+    eof_min = np.floor(eof.min())
+    eof_max = np.ceil(eof.max())
     for i in range(nmodes):
         m = Basemap(ax = axes.flat[i], width = 2000000, height = 2300000, 
                     resolution = 'l', projection = 'stere', 
@@ -169,19 +170,21 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
         m.drawstates(linewidth = 0.7, color = "#696969")
         m.drawcountries(linewidth = 0.7, color = "#696969")
         parallels = np.arange(0., 81, 10)
-        m.drawparallels(parallels, labels = [True, False, False, False], color = "#333333")
+        m.drawparallels(parallels, labels = [True, False, False, False],
+                        color = "#333333")
         meridians = np.arange(10., 351., 10)
-        m.drawmeridians(meridians, labels = [False, False, False, True], color = "#333333")
-        ctf1 = m.contourf(x, y, eof[i].squeeze(), divs, cmap = plt.cm.RdBu, tri = True)
-        m.scatter(x, y, facecolors = "none", edgecolor = "k", lw = 1)
-        title_str = string.ascii_lowercase[i] + ") PC" + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)"
+        m.drawmeridians(meridians, labels = [False, False, False, True], 
+                        color = "#333333")
+        ctf1 = m.scatter(x, y, s = 50, c = eof[i].squeeze(),
+                         vmin = eof_min, vmax = eof_max,
+                         cmap = plt.cm.RdBu, edgecolor = "k", lw = 0.75)
+        percent_var = int(np.round(frac_var[i] * 100, 1)) 
+        title_str = string.ascii_lowercase[i] + ") PC" + str(i + 1) + " (" + str(percent_var) + "%)"
         axes.flat[i].set_title(title_str, loc = "left")
-    # cax, kw = mpl.colorbar.make_axes([ax for ax in axes.flat])
-    # cb = plt.colorbar(ctf1, cax = cax, **kw)
-    # fig.tight_layout()
     fig.subplots_adjust(bottom = 0.15)
     cax = fig.add_axes([0.17, 0.1, 0.7, 0.01])
-    cb = plt.colorbar(ctf1, cax = cax, orientation = 'horizontal')
+    cb = plt.colorbar(ctf1, ticks = np.linspace(eof_min, eof_max, 5),
+                      cax = cax, orientation = 'horizontal')
     cb.set_label("cov")
     return fig
 
