@@ -5,10 +5,10 @@
 
 import sqlite3
 import string
-from calendar import monthrange
 import datetime
 import itertools
 import random
+import xarray as xr
 import numpy as np
 import pandas as pd
 # from numpy.linalg import svd
@@ -16,8 +16,144 @@ import scipy.stats as stats
 import seaborn as sns
 import pylab as plt
 import matplotlib as mpl
+import cartopy.util
+import cartopy.crs as ccrs
+import matplotlib.path as mplpath
 from mpl_toolkits.basemap import Basemap
+from calendar import monthrange
 
+def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''):
+    """Calculate point-field statistic hypothesis test
+
+    Args:
+    field : An xarray DataArray with dimensions for season, PC, lat, lon.
+    pc_df : A pandas DataFrame of principal components.
+    stat_fun : A function, f(s, a), that performs a hypothesis test when 
+        given a 1D array-like time series ('s') and a 2D (lat, lon) array-like
+         field ('a'). The function must return two arrays with the same shape
+          as 'a'. The first gives the statistic. The second gives a p-value 
+        for the hypothesis test.
+    stat_name : A string giving the name of the statistic returned by 
+        'stat_fun'. Default is simply 'statistic'.
+    units : Optional string that gives the units for the statistic. This will 
+        be passed on to the 'units' attribute of the statistic in the returned 
+        DataSet.
+
+    Returns:
+    An xarray dataset with variables for the statistic and pvalue of the 
+    hypothesis test.
+    """
+    season = ['JJA-1', 'SON-1', 'DJF', 'MAM']
+    pc_dim = ['PC1', 'PC2']
+    out_lat = field['lat'].values
+    out_lon = field['lon'].values
+    out_shape = (len(pc_dim), len(season), len(out_lat), len(out_lon))
+    out = xr.Dataset({stat_name: (['PC','season', 'lat', 'lon'], np.zeros(out_shape)),
+                      'pvalue': (['PC','season', 'lat', 'lon'], np.zeros(out_shape))},
+                     coords = {'PC': pc_dim,
+                               'season': season,
+                               'lon': out_lon,
+                               'lat': out_lat})
+    for pc_i in pc_dim:
+        for seas_i in season:
+            s, pvalue = stat_fun(pc_df[pc_i].values, field.sel(season = seas_i).values)
+            out[stat_name].loc[dict(PC = pc_i, season= seas_i)] = s
+            out['pvalue'].loc[dict(PC = pc_i, season= seas_i)] = pvalue
+    if units:
+        out[stat_name].attrs['units'] = units
+    return out
+
+
+def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, **kwargs):
+    """
+    """
+    assert map_type in ['north_hemisphere', 'global']
+
+    proj = {'north_hemisphere': ccrs.LambertAzimuthalEqualArea(central_longitude = -160,
+                                                               central_latitude = 90),
+            'global': ccrs.Robinson(central_longitude = -160)}
+    subplot_kwargs = {'north_hemisphere': {'adjust': {'right': 1 - 0.15},
+                                         'add_axes': [1 - 0.17, 0.1, 0.017, 0.7],
+                                         'colorbar': {'orientation': 'vertical'}},
+                      'global': {'adjust': {'bottom': 0.15},
+                                 'add_axes': [0.17, 0.1, 0.7, 0.01],
+                                 'colorbar': {'orientation': 'horizontal'}}
+                     }
+
+    pc_dim = ds['PC'].values
+    season = ds['season'].values
+
+    alpha = [0, sig_alpha, 1]
+
+    theta = np.linspace(0, 2 * np.pi, 100)
+    center, radius = [0.5, 0.5], 0.5
+    verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+    circle = mplpath.Path(verts * radius + center)
+
+    plot_meta = [{'season': 'JJA-1',
+                  'PC':     'PC1',
+                  'title':  'a) PC1: JJA'},
+                 {'season': 'JJA-1',
+                  'PC':     'PC2',
+                  'title':  'e) PC2: JJA'},
+                 {'season': 'SON-1',
+                  'PC':     'PC1',
+                  'title':  'b) PC1: SON'},
+                 {'season': 'SON-1',
+                  'PC':     'PC2',
+                  'title':  'f) PC2: SON'},
+                 {'season': 'DJF',
+                  'PC':     'PC1',
+                  'title':  'c) PC1: DJF'},
+                 {'season': 'DJF',
+                  'PC':     'PC2',
+                  'title':  'g) PC2: DJF'},
+                 {'season': 'MAM',
+                  'PC':     'PC1',
+                  'title':  'd) PC1: MAM'},
+                 {'season': 'MAM',
+                  'PC':     'PC2',
+                  'title':  'h) PC2: MAM'}]
+
+    fig = plt.figure(figsize = (5.5, 8))
+    for i in range(len(pc_dim) * len(season)):
+        i_season = plot_meta[i]['season']
+        i_pc = plot_meta[i]['PC']
+        i_title = plot_meta[i]['title']
+        ax = fig.add_subplot(len(season), len(pc_dim), i + 1, projection = proj[map_type])
+        ax.coastlines()
+        ax.gridlines(linestyle = 'dotted', color = '#696969', linewidth = 0.5)
+        ds_crop = ds.sel(season = i_season, PC = i_pc)
+        if map_type == 'north_hemisphere':
+            ax.set_boundary(circle, transform = ax.transAxes)
+            ds_crop = ds_crop.sel(lat = slice(90, 0))
+        dif_crop = ds_crop[stat_name]
+        p_crop = ds_crop['pvalue']
+        p_cyc, lon_cyc = cartopy.util.add_cyclic_point(p_crop.values, 
+                                                       coord = p_crop['lon'].values, 
+                                                       axis = -1)
+
+        ctf1 = (ds_crop[stat_name].plot
+                                  .pcolormesh(ax = ax,
+                                              cmap = plt.cm.RdBu,
+                                              transform = ccrs.PlateCarree(), 
+                                              add_colorbar = False,
+                                              add_labels = False,
+                                              **kwargs))
+        ctf2 = ax.contourf(lon_cyc, p_crop.lat.values, p_cyc, alpha, 
+                           colors = 'none', 
+                           hatches = ['....', None], 
+                           transform = ccrs.PlateCarree())
+        ax.set_title(i_title, loc = 'left')
+        
+    fig.tight_layout()
+
+    fig.subplots_adjust(**subplot_kwargs[map_type]['adjust'])
+    cax = fig.add_axes(subplot_kwargs[map_type]['add_axes'])
+    cb = plt.colorbar(ctf1, cax = cax, **subplot_kwargs[map_type]['colorbar'])
+    cb.set_label(stat_name)
+    
+    return fig
 
 class Date(datetime.date):
     # TODO: Is this used?
@@ -185,7 +321,7 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
     cax = fig.add_axes([0.17, 0.1, 0.7, 0.01])
     cb = plt.colorbar(ctf1, ticks = np.linspace(eof_min, eof_max, 5),
                       cax = cax, orientation = 'horizontal')
-    cb.set_label("cov")
+    cb.set_label('Covariance')
     return fig
 
 def plot_gagesmap(lat, lon):
