@@ -22,6 +22,12 @@ import matplotlib.path as mplpath
 from mpl_toolkits.basemap import Basemap
 from calendar import monthrange
 
+mpl.rcParams.update({'font.size': 6})  # GRL figure font-size.
+mpl.rcParams.update({'axes.titlesize': 'medium'})  # GRL figure font-size.
+mpl.rcParams.update({'axes.labelsize': 'medium'})  # GRL figure font-size.
+mpl.rcParams.update({'legend.fontsize': 'medium'})  # GRL figure font-size.
+
+
 def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''):
     """Calculate point-field statistic hypothesis test
 
@@ -115,18 +121,22 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, **kwargs)
                   'PC':     'PC2',
                   'title':  'h) PC2: MAM'}]
 
-    fig = plt.figure(figsize = (5.5, 8))
+    fig = plt.figure(figsize = (7.48031, 9.05512))
     for i in range(len(pc_dim) * len(season)):
         i_season = plot_meta[i]['season']
         i_pc = plot_meta[i]['PC']
         i_title = plot_meta[i]['title']
-        ax = fig.add_subplot(len(season), len(pc_dim), i + 1, projection = proj[map_type])
-        ax.coastlines()
-        ax.gridlines(linestyle = 'dotted', color = '#696969', linewidth = 0.5)
+        ax = fig.add_subplot(len(season), len(pc_dim), i + 1, 
+                             projection = proj[map_type])
+        ax.coastlines(color = '#333333', linewidth = 1)
+        ax.gridlines(color = '#696969',#linestyle = 'dotted', 
+                     linewidth = 0.5)#, dashes = (1, 1))
         ds_crop = ds.sel(season = i_season, PC = i_pc)
         if map_type == 'north_hemisphere':
             ax.set_boundary(circle, transform = ax.transAxes)
             ds_crop = ds_crop.sel(lat = slice(90, 0))
+        else:
+            ds_crop = ds_crop.sel(lat = slice(70, -70))
         dif_crop = ds_crop[stat_name]
         p_crop = ds_crop['pvalue']
         p_cyc, lon_cyc = cartopy.util.add_cyclic_point(p_crop.values, 
@@ -237,7 +247,7 @@ def varimax(Phi, gamma = 1.0, q = 20, tol = 1e-6):
 
 def plot_northtest(x, nmodes=10):
     """Screeplot `nmodes` leading modes from EOFS solver instance `x`"""
-    fig = plt.figure(figsize = (3, 3))
+    fig = plt.figure(figsize = (3.74016, 4.52756))
     frac_var = x.varianceFraction(nmodes)
     err = x.northTest(nmodes, vfscaled = True)
     plt.errorbar(np.arange(nmodes) + 1, frac_var, yerr = err, fmt = "o")
@@ -287,7 +297,7 @@ def plot_vectormap(coef1, coef2, lat, lon):
     m.scatter(x, y, facecolors = "none", edgecolor = "k")
     return fig
 
-def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
+def plot_eof(x, lat, lon, nmodes=10, figure_size=(3.74016, 9.05512)):
     """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
@@ -302,18 +312,18 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(9.5, 6.5)):
                     lat_ts = 40.0, 
                     lat_0 = 40.0, lon_0 = -114.0)
         x, y = m(lon, lat)
-        m.drawcoastlines(linewidth = 0.7, color = "#696969")
-        m.drawstates(linewidth = 0.7, color = "#696969")
-        m.drawcountries(linewidth = 0.7, color = "#696969")
+        m.drawcoastlines(linewidth = 1, color = "#696969")
+        m.drawstates(linewidth = 1, color = "#696969")
+        m.drawcountries(linewidth = 1, color = "#696969")
         parallels = np.arange(0., 81, 10)
-        m.drawparallels(parallels, labels = [True, False, False, False],
-                        color = "#333333")
+        m.drawparallels(parallels, #labels = [True, False, False, False],
+                        color = "#333333", fontsize = 6, linewidth = 0.5)
         meridians = np.arange(10., 351., 10)
-        m.drawmeridians(meridians, labels = [False, False, False, True], 
-                        color = "#333333")
+        m.drawmeridians(meridians, #labels = [False, False, False, True], 
+                        color = "#333333", fontsize = 6, linewidth = 0.5)
         ctf1 = m.scatter(x, y, s = 50, c = eof[i].squeeze(),
                          vmin = eof_min, vmax = eof_max,
-                         cmap = plt.cm.RdBu, edgecolor = "k", lw = 0.75)
+                         cmap = plt.cm.RdBu, edgecolor = "k", linewidth = 0.75)
         percent_var = int(np.round(frac_var[i] * 100, 1)) 
         title_str = string.ascii_lowercase[i] + ") PC" + str(i + 1) + " (" + str(percent_var) + "%)"
         axes.flat[i].set_title(title_str, loc = "left")
