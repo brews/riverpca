@@ -16,16 +16,17 @@ import scipy.stats as stats
 import seaborn as sns
 import pylab as plt
 import matplotlib as mpl
+import cartopy
 import cartopy.util
 import cartopy.crs as ccrs
 import matplotlib.path as mplpath
 from mpl_toolkits.basemap import Basemap
 from calendar import monthrange
 
-mpl.rcParams.update({'font.size': 6})  # GRL figure font-size.
-mpl.rcParams.update({'axes.titlesize': 'medium'})  # GRL figure font-size.
-mpl.rcParams.update({'axes.labelsize': 'medium'})  # GRL figure font-size.
-mpl.rcParams.update({'legend.fontsize': 'medium'})  # GRL figure font-size.
+# mpl.rcParams.update({'font.size': 6})  # GRL figure font-size.
+# mpl.rcParams.update({'axes.titlesize': 'medium'})  # GRL figure font-size.
+# mpl.rcParams.update({'axes.labelsize': 'medium'})  # GRL figure font-size.
+# mpl.rcParams.update({'legend.fontsize': 'medium'})  # GRL figure font-size.
 
 
 def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''):
@@ -70,10 +71,11 @@ def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''
     return out
 
 
-def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, **kwargs):
+def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=None, **kwargs):
     """
     """
     assert map_type in ['north_hemisphere', 'global']
+    assert plotfun in ['contourf', 'pcolormesh']
 
     proj = {'north_hemisphere': ccrs.LambertAzimuthalEqualArea(central_longitude = -160,
                                                                central_latitude = 90),
@@ -128,31 +130,43 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, **kwargs)
         i_title = plot_meta[i]['title']
         ax = fig.add_subplot(len(season), len(pc_dim), i + 1, 
                              projection = proj[map_type])
-        ax.coastlines(color = '#333333', linewidth = 1)
-        ax.gridlines(color = '#696969',#linestyle = 'dotted', 
-                     linewidth = 0.5)#, dashes = (1, 1))
+        ax.gridlines(color = '#696969',
+                     linewidth = 0.5)
         ds_crop = ds.sel(season = i_season, PC = i_pc)
         if map_type == 'north_hemisphere':
+            ax.coastlines(color = '#696969', linewidth = 1)
             ax.set_boundary(circle, transform = ax.transAxes)
             ds_crop = ds_crop.sel(lat = slice(90, 0))
         else:
-            ds_crop = ds_crop.sel(lat = slice(70, -70))
-        dif_crop = ds_crop[stat_name]
+            ax.add_feature(cartopy.feature.LAND, 
+                           edgecolor = '#696969', facecolor = '#696969', 
+                           zorder = 0)
+        stat_crop = ds_crop[stat_name]
         p_crop = ds_crop['pvalue']
         p_cyc, lon_cyc = cartopy.util.add_cyclic_point(p_crop.values, 
                                                        coord = p_crop['lon'].values, 
                                                        axis = -1)
+        stat_cyc, lon_cyc = cartopy.util.add_cyclic_point(stat_crop.values, 
+                                                       coord = stat_crop['lon'].values, 
+                                                       axis = -1)
+        # For whatever reason, this screws with our NAN masks, so to correct:
+        stat_cyc = np.ma.masked_where(np.isnan(stat_cyc), stat_cyc)
 
-        ctf1 = (ds_crop[stat_name].plot
-                                  .pcolormesh(ax = ax,
-                                              cmap = plt.cm.RdBu,
-                                              transform = ccrs.PlateCarree(), 
-                                              add_colorbar = False,
-                                              add_labels = False,
-                                              **kwargs))
+        ctf1 = None
+        if plotfun == 'pcolormesh':
+            ctf1 = ax.pcolormesh(lon_cyc, stat_crop.lat.values, stat_cyc, 
+                               cmap = plt.cm.RdBu, 
+                               transform = ccrs.PlateCarree(), **kwargs)
+        elif plotfun == 'contourf':
+            ctf1 = ax.contourf(lon_cyc, stat_crop.lat.values, stat_cyc, 
+                               cmap = plt.cm.RdBu, 
+                               transform = ccrs.PlateCarree(), **kwargs)
+
         ctf2 = ax.contourf(lon_cyc, p_crop.lat.values, p_cyc, alpha, 
                            colors = 'none', 
                            hatches = ['....', None], 
+                           # hatches = ['xxxx', None],
+                           # edgecolor = '#333333',
                            transform = ccrs.PlateCarree())
         ax.set_title(i_title, loc = 'left')
         
