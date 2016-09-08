@@ -8,27 +8,34 @@ import numpy as np
 from netCDF4 import Dataset
 import pandas as pd
 import xarray as xr
+import scipy.signal as signal
 
 ERSST_PATH = "./data/ERSST_V3b/sst.mnmean.nc"
 OUT_FILE = "./data/ersst.npz"
 ORIGIN_TIME = datetime.datetime(1800, 1, 1, 0, 0, 0)
 OUT_NC = './data/ersstv3b_season.nc'
 
+def nandetrend(x, **kwargs):
+    """Detrending of ndarray that contains nans"""
+    assert len(x.shape) == 3
+    nan_mask = np.isnan(x)
+    x[nan_mask] = 0
+    x_detrend = signal.detrend(x, **kwargs)
+    x_detrend[nan_mask] = np.nan
+    return x_detrend
+
 def main():
     raw = Dataset(ERSST_PATH)
     dates = [ORIGIN_TIME + datetime.timedelta(days = x) for x in raw.variables["time"][:]]
-    lat = raw.variables["lat"]
-    lon = raw.variables["lon"]
-    lon, lat = np.meshgrid(lon[:], lat[:])
-    sst = raw.variables["sst"]
+    lon, lat = np.meshgrid(raw.variables["lon"], raw.variables["lat"])
+    sst_detrend = nandetrend(raw.variables["sst"][:].filled(np.nan), type = 'linear', axis = 0)
     time = []
 
-    # year_min = min([i.year for i in dates])
     year_min = min([i.year for i in dates])
     year_max = max([i.year for i in dates])
     year_range = np.arange(year_min + 1, year_max)
 
-    out = np.empty((4, len(year_range), raw.variables["sst"].shape[-2], raw.variables["sst"].shape[-1]))
+    out = np.empty((4, len(year_range), sst_detrend.shape[-2], sst_detrend.shape[-1]))
     for j in range(len(year_range)):
         yr = year_range[j]
         time.append(yr)
@@ -45,16 +52,12 @@ def main():
                 msk_son.append(d)
             if (dates[d] == datetime.datetime(yr - 1, 6, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 7, 1, 0, 0)) or (dates[d] == datetime.datetime(yr - 1, 8, 1, 0, 0)):
                 msk_jja.append(d)
-        out[0, j, :, :] = np.mean(raw.variables["sst"][msk_djf], 0)
-        out[1, j, :, :] = np.mean(raw.variables["sst"][msk_mam], 0)
-        out[2, j, :, :] = np.mean(raw.variables["sst"][msk_son], 0)
-        out[3, j, :, :] = np.mean(raw.variables["sst"][msk_jja], 0)
+        out[0, j, :, :] = np.nanmean(sst_detrend[msk_djf], 0)
+        out[1, j, :, :] = np.nanmean(sst_detrend[msk_mam], 0)
+        out[2, j, :, :] = np.nanmean(sst_detrend[msk_son], 0)
+        out[3, j, :, :] = np.nanmean(sst_detrend[msk_jja], 0)
 
-
-    landmask = out[0, 0] == 0
-    # np.savez_compressed(OUT_FILE, data = out, lat = lat, lon = lon, time = time, landmask = landmask)
-    out_msk = np.where(~landmask[np.newaxis, np.newaxis, :, :], out, np.nan)
-    ds = xr.Dataset({'sst': (['season', 'wy', 'lat', 'lon'], out_msk)},
+    ds = xr.Dataset({'sst': (['season', 'wy', 'lat', 'lon'], out)},
                     coords = {'lon': (['lon'], raw.variables['lon'][:]),
                               'lat': (['lat'], raw.variables['lat'][:]),
                               'wy': pd.date_range(str(year_range[0])+'-01-01', str(year_range[-1])+'-01-01', freq = 'AS'),
