@@ -77,13 +77,12 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
     assert map_type in ['north_hemisphere', 'global']
     assert plotfun in ['contourf', 'pcolormesh']
 
-    proj = {'north_hemisphere': ccrs.LambertAzimuthalEqualArea(central_longitude = -160,
-                                                               central_latitude = 90),
+    proj = {'north_hemisphere': ccrs.LambertAzimuthalEqualArea(central_longitude = -160, central_latitude = 90),
             'global': ccrs.Robinson(central_longitude = -160)}
-    subplot_kwargs = {'north_hemisphere': {'adjust': {'right': 1 - 0.15},
-                                         'add_axes': [1 - 0.17, 0.1, 0.017, 0.7],
-                                         'colorbar': {'orientation': 'vertical'}},
-                      'global': {'adjust': {'bottom': 0.15},
+    subplot_kwargs = {'north_hemisphere': {'adjust': {'bottom': 0.1},
+                                         'add_axes': [0.17, 0.1, 0.7, 0.01],
+                                         'colorbar': {'orientation': 'horizontal'}},
+                      'global': {'adjust': {'bottom': 0.1},
                                  'add_axes': [0.17, 0.1, 0.7, 0.01],
                                  'colorbar': {'orientation': 'horizontal'}}
                      }
@@ -101,34 +100,34 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
     plot_meta = [{'season': 'JJA-1',
                   'PC':     'PC1',
                   'title':  'a) PC1: JJA'},
+                 {'season': 'SON-1',
+                  'PC':     'PC1',
+                  'title':  'b) PC1: SON'},
+                 {'season': 'DJF',
+                  'PC':     'PC1',
+                  'title':  'c) PC1: DJF'},
+                 {'season': 'MAM',
+                  'PC':     'PC1',
+                  'title':  'd) PC1: MAM'},
                  {'season': 'JJA-1',
                   'PC':     'PC2',
                   'title':  'e) PC2: JJA'},
                  {'season': 'SON-1',
-                  'PC':     'PC1',
-                  'title':  'b) PC1: SON'},
-                 {'season': 'SON-1',
                   'PC':     'PC2',
                   'title':  'f) PC2: SON'},
-                 {'season': 'DJF',
-                  'PC':     'PC1',
-                  'title':  'c) PC1: DJF'},
                  {'season': 'DJF',
                   'PC':     'PC2',
                   'title':  'g) PC2: DJF'},
                  {'season': 'MAM',
-                  'PC':     'PC1',
-                  'title':  'd) PC1: MAM'},
-                 {'season': 'MAM',
                   'PC':     'PC2',
                   'title':  'h) PC2: MAM'}]
 
-    fig = plt.figure(figsize = (7.48031, 9.05512))
+    fig = plt.figure(figsize = (7.48031, 4.52756))
     for i in range(len(pc_dim) * len(season)):
         i_season = plot_meta[i]['season']
         i_pc = plot_meta[i]['PC']
         i_title = plot_meta[i]['title']
-        ax = fig.add_subplot(len(season), len(pc_dim), i + 1, 
+        ax = fig.add_subplot(len(pc_dim), len(season), i + 1, 
                              projection = proj[map_type])
         ax.gridlines(color = '#696969',
                      linewidth = 0.5)
@@ -138,6 +137,7 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
             ax.set_boundary(circle, transform = ax.transAxes)
             ds_crop = ds_crop.sel(lat = slice(90, 0))
         else:
+            ax.set_extent([100, 300, -90, 90])
             ax.add_feature(cartopy.feature.LAND, 
                            edgecolor = '#696969', facecolor = '#696969', 
                            zorder = 0)
@@ -165,10 +165,10 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
         ctf2 = ax.contourf(lon_cyc, p_crop.lat.values, p_cyc, alpha, 
                            colors = 'none', 
                            hatches = ['....', None], 
-                           # hatches = ['xxxx', None],
-                           # edgecolor = '#333333',
                            transform = ccrs.PlateCarree())
         ax.set_title(i_title, loc = 'left')
+        ax.outline_patch.set_edgecolor('none')
+        # ax.outline_patch.set_edgecolor('#696969')
         
     fig.tight_layout()
 
@@ -176,6 +176,7 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
     cax = fig.add_axes(subplot_kwargs[map_type]['add_axes'])
     cb = plt.colorbar(ctf1, cax = cax, **subplot_kwargs[map_type]['colorbar'])
     cb.set_label(stat_name)
+
     
     return fig
 
@@ -274,7 +275,7 @@ def plot_pc(x, yr, nmodes=10):
     """Plot `nmodes` leading PCs from EOFS solver instance `x` over corresponding array of years, `yr`"""
     pc = x.pcs(npcs = nmodes, pcscaling = 1)
     frac_var = x.varianceFraction(nmodes)
-    fig, axes = plt.subplots(figsize = (9.5, 6.5), nrows = nmodes, ncols = 1, sharex = True, sharey = True)
+    fig, axes = plt.subplots(figsize = (3.74016, 4.52756), nrows = nmodes, ncols = 1, sharex = True, sharey = True)
     for i in range(nmodes):
         axes.flat[i].plot(yr, pc[:, i], "-o")
         axes.flat[i].set_title("PC " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
@@ -282,7 +283,7 @@ def plot_pc(x, yr, nmodes=10):
 
 def plot_trendmap(x, lat, lon):
     """Point map colored to show the trend of western US gages"""
-    fig = plt.figure(figsize = (4, 6))
+    fig = plt.figure(figsize = (3.74016, 4.52756))
     ax = fig.add_axes([0.1,0.1,0.8,0.8])
     m = Basemap(width = 2000000, height = 2300000, 
                 resolution = 'l', projection = 'stere', 
@@ -298,7 +299,7 @@ def plot_trendmap(x, lat, lon):
 
 def plot_vectormap(coef1, coef2, lat, lon):
     """See Fig. 2 of Quadrelli and Wallace, 2004"""
-    fig = plt.figure(figsize = (5, 4))
+    fig = plt.figure(figsize = (3.74016, 4.52756))
     m = Basemap(width = 2000000, height = 2300000, 
                 resolution = 'l', projection = 'stere', 
                 lat_ts = 40.0, 
@@ -311,12 +312,12 @@ def plot_vectormap(coef1, coef2, lat, lon):
     m.scatter(x, y, facecolors = "none", edgecolor = "k")
     return fig
 
-def plot_eof(x, lat, lon, nmodes=10, figure_size=(3.74016, 9.05512)):
+def plot_eof(x, lat, lon, nmodes=10, figure_size=(7.48031, 4.52756)):
     """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
     fig, axes = plt.subplots(figsize = figure_size,
-                             nrows = nmodes, ncols = 1, 
+                             nrows = 1, ncols = nmodes, 
                              sharex = True, sharey = True)
     eof_min = np.floor(eof.min())
     eof_max = np.ceil(eof.max())
@@ -326,6 +327,7 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(3.74016, 9.05512)):
                     lat_ts = 40.0, 
                     lat_0 = 40.0, lon_0 = -114.0)
         x, y = m(lon, lat)
+        m.drawmapboundary(color = 'none')
         m.drawcoastlines(linewidth = 1, color = "#696969")
         m.drawstates(linewidth = 1, color = "#696969")
         m.drawcountries(linewidth = 1, color = "#696969")
@@ -350,7 +352,7 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(3.74016, 9.05512)):
 
 def plot_gagesmap(lat, lon):
     """Create a simple sample map of USGS gages in the Western US, given lat/lon"""
-    fig = plt.figure(figsize = (4, 6))
+    fig = plt.figure(figsize = (3.74016, 4.52756))
     ax = fig.add_axes([0.1,0.1,0.8,0.8])
     m = Basemap(width = 2000000, height = 2300000, 
                 resolution = 'l', projection = 'stere', 
