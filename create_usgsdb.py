@@ -1,12 +1,12 @@
 #! /usr/bin/env python3
 # 2016-03-06
 
-#UCDN-2009 site http://water.usgs.gov/osw/hcdn-2009/
+#HCDN-2009 site http://water.usgs.gov/osw/hcdn-2009/
 
 # Example query:
 #http://waterservices.usgs.gov/nwis/stat/?format=rdb&sites=01646500&parameterCd=00060&statReportType=annual&statYearType=water
 
-# Create an SQLite3 database containing UCDN-2009 data.
+# Create an SQLite3 database containing HCDN-2009 data.
 
 import urllib.request
 import sqlite3 as sql
