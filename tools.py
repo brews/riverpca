@@ -54,7 +54,8 @@ def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''
                                'lat': out_lat})
     for pc_i in pc_dim:
         for seas_i in season:
-            s, pvalue = stat_fun(pc_df[pc_i].values, field.sel(season = seas_i).values)
+            s, pvalue = stat_fun(pc_df[pc_i].values, field[field['season'] == seas_i].values)
+            # s, pvalue = stat_fun(pc_df[pc_i].values, field.sel(season = seas_i).values)
             out[stat_name].loc[dict(PC = pc_i, season= seas_i)] = s
             out['pvalue'].loc[dict(PC = pc_i, season= seas_i)] = pvalue
     if units:
@@ -358,3 +359,33 @@ def composite_ttest(x, field):
     t, p = ttest(field, divisions_high)
     dif = np.mean(field[divisions_high], 0) - np.mean(field[~divisions_high], 0)
     return dif, p
+
+def pointfield_corr(**kwargs):
+    """ Point correlation with significance test"""
+    out = pointfield_statistic(**kwargs, 
+                                     stat_fun = pearson_corr,
+                                     stat_name = 'Correlation')
+    return out
+
+def plot_pointfield_corr(ds, map_type):
+    """Plot point correlation maps"""
+    out = plot_pointfield_statistic(ds = ds,
+                                          map_type = map_type,
+                                          stat_name = 'Correlation',
+                                          plotfun = 'pcolormesh',
+                                          vmin = -1, vmax = 1)
+    return out
+
+def pointfield_ttest(**kwargs):
+    """ Point correlation with significance test"""
+    out = pointfield_statistic(**kwargs, 
+                                     stat_fun = composite_ttest)
+    return out
+
+def plot_pointfield_ttest(ds, map_type, **kwargs):
+    """Plot composite t-test maps"""
+    out = plot_pointfield_statistic(ds = ds,
+                                          map_type = map_type,
+                                          plotfun = 'pcolormesh',
+                                          **kwargs)
+    return out

@@ -1,19 +1,13 @@
-#! /usr/bin/env python3
-# 2016-03-06
-
 #HCDN-2009 site http://water.usgs.gov/osw/hcdn-2009/
 
 # Example query:
 #http://waterservices.usgs.gov/nwis/stat/?format=rdb&sites=01646500&parameterCd=00060&statReportType=annual&statYearType=water
-
-# Create an SQLite3 database containing HCDN-2009 data.
 
 import urllib.request
 import sqlite3 as sql
 
 WY_LINE_SKIP = 33
 MONTHLY_LINE_SKIP = 34
-DB_PATH = "./data/stationdb.sqlite"
 SCHEMA_STRING = """
             DROP TABLE IF EXISTS StationInfo;
             CREATE TABLE StationInfo(id INTEGER PRIMARY KEY,
@@ -56,7 +50,7 @@ SCHEMA_STRING = """
                                FOREIGN KEY (stationid) REFERENCES StationInfo(stationid));
                 """
 
-def create_database(path, data, schema):
+def create_database(path, data, schema=SCHEMA_STRING):
     """Create an sqlite3 database of river gage information.
 
     Args:
@@ -110,31 +104,27 @@ def get_wateryear(x, skip_lines=0):
         line = line.rstrip().strip().split("\t")
         yield(tuple(line))
 
-
-def main():
+def hcdn(outpath, inpath):
     # Cleaning data and preparing it for entry into the database.
 
-    out = {"StationInfo": [], "StationWY": [], "StationMonthly": []}
+    out = {'StationInfo': [], 'StationWY': [], 'StationMonthly': []}
 
     # Read & process HCDN-2009 file.
     skip_lines = 1
-    with open("./data/HCDN-2009_Station_Info.tsv", "r") as fl:
+    with open(inpath, 'r') as fl:
         raw_lines = fl.readlines()
     for line in raw_lines[skip_lines:]:
         line = line.rstrip().strip().split("\t")
         # For whatever reason some of the station IDs are missing a "0".
         if len(line[0]) == 7:
-            line[0] = "0" + line[0]
+            line[0] = '0' + line[0]
         wy_file = get_wateryear(line[0], WY_LINE_SKIP)
         for l in wy_file:
-            out["StationWY"].append(l)
+            out['StationWY'].append(l)
         monthly_file = get_monthly(line[0], MONTHLY_LINE_SKIP)
         for l in monthly_file:
-            out["StationMonthly"].append(l)
-        out["StationInfo"].append(tuple(line))
+            out['StationMonthly'].append(l)
+        out['StationInfo'].append(tuple(line))
 
     # Rewritting database tables and inserting data.
-    create_database(DB_PATH, out, SCHEMA_STRING)
-
-if __name__ == '__main__':
-    main()
+    create_database(path = outpath, data = out)
