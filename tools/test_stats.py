@@ -1,5 +1,3 @@
-#! /usr/bin/env python3
-
 import unittest
 from numpy import linspace, sin, tan, reshape, repeat
 from numpy.testing import assert_almost_equal
