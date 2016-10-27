@@ -307,7 +307,7 @@ def pearson_corr(x, field):
             to be time.
 
     Returns: (ndarray, ndarray)
-        A 2D array of Pearson correlation values and a 2D array of p-values.
+        Two ndarrays. A 2D array of Pearson correlation values and a 2D array of p-values.
 
     Notes:
         The p-values returned by this function are from a two-sided Student's 
@@ -321,8 +321,8 @@ def pearson_corr(x, field):
     df = n - 2
     r = ((x[:, np.newaxis] * field).sum(axis = 0) - n * x.mean() * field.mean(axis = 0)) / (np.sqrt(np.sum(x**2) - n * x.mean()**2) * np.sqrt(np.sum(field**2, axis = 0) - n * field.mean(axis = 0)**2))
     # TODO: Need to ensure that R is between -1 and 1. This is from float-point rounding errors.
-    r[r > 1] = 1
-    r[r < -1] = -1
+    # r[r > 1] = 1
+    # r[r < -1] = -1
     t = r * np.sqrt(df/(1 - r**2))
     p = stats.betai(0.5*df, 0.5, df/(df+t*t))
     # p = 1 - (stats.t.cdf(abs(t), df = df) - stats.t.cdf(-abs(t), df = df))
@@ -337,7 +337,7 @@ def cut_divisions(x):
 def ttest(x, msk):
     """Apply bool mask to x and Welch's t-test the mask results and it's inverse"""
     t, p = stats.ttest_ind(x[msk], x[~msk], equal_var = False)
-    return (t, p)
+    return t, p
 
 def composite_ttest(x, field):
     """2-sided t-test for composites
