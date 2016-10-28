@@ -14,7 +14,7 @@ Analysis for the paper is in the `notebooks/` directory. This directory contains
 
 * `tools/`: Specialized plotting and statistical tools of varying use and quality. These are used by the jupyter notebooks in `notebooks/`.
 
-* `main.py`: Main script to download, parse, and clean the data needed for this projects analysis.
+* `main.py`: Main script to download, parse, and clean the data needed for this project's analysis.
 
 * `requirements.txt`: Computer readable list of libraries and modules to recreate the coding environment used for this analysis. If you use the Conda Python distribution or Miniconda package manager, you can use this file to setup for tweak or recreate our analysis.
 
