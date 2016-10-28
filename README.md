@@ -2,7 +2,7 @@
 
 Climate-oriented PCA of USGS river gages in the western US. This code was part of analysis and data collection for a paper currently in review.
 
-Analysis for the paper is in the `notebooks` directory. This directory contains a number of Jupyter notebooks. You can easily view the code and output figures in these notebooks online through GitHub, without the need to download data, scripts, or code. The other files and directories in this repository are support material used for the analysis.
+Analysis for the paper is in the `notebooks/` directory. This directory contains a number of Jupyter notebooks. You can easily view the code and output figures in these notebooks online through GitHub, without the need to download data, scripts, or code. The other files and directories in this repository are support material used for the analysis.
 
 ## Files and directories
 
