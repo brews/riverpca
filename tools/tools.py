@@ -17,7 +17,6 @@ import cartopy.util
 import cartopy.crs as ccrs
 import matplotlib.path as mplpath
 from mpl_toolkits.basemap import Basemap
-from calendar import monthrange
 
 
 def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''):
@@ -169,24 +168,26 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
     cb.set_label(stat_name)
     return fig
 
-def check_monthly(dbpath, yearlow, yearhigh, westoflon=-104, eastoflon=-125):
+def check_wy(dbpath, yearlow, yearhigh, westoflon=-104, eastoflon=-125):
     """Test that each of the USGS stations in the sqllite database have complete observations over the period we are interested in"""
-    expected_obs_no = 12 * ((yearhigh - yearlow) + 1)
+    #yearlow and yearhigh should be in wateryear
+    # This is a very poor way of doing this.
+    expected_obs_no = ((yearhigh - yearlow) + 1)
     candidate_pass = []
     conn = sqlite3.connect(dbpath)
     c = conn.cursor()
-    c.execute("SELECT stationid FROM StationInfo WHERE longage < ? AND longage > ?", (westoflon, eastoflon))
+    c.execute('SELECT "STATION ID" FROM StationInfo WHERE LONG_GAGE < ? AND LONG_GAGE > ?', (westoflon, eastoflon))
     candidate_ids = c.fetchall()
     for station in candidate_ids:
-        c.execute("SELECT month, year, count FROM StationMonthly WHERE stationid=? AND year >= ? AND year <= ?", (station[0], yearlow, yearhigh))
+        c.execute("SELECT year_nu, count_nu FROM StationWY WHERE site_no=? AND year_nu >= ? AND year_nu <= ?", (station[0], yearlow, yearhigh))
         myc = c.fetchall()
-        # Check that we have all months:
+        # Check that we have all years:
         if len(myc) != expected_obs_no:
             continue
-        # Check that no months are missing days:
+        # Check that no years are missing days:
         exam = [False] * expected_obs_no
         for i in range(expected_obs_no):
-            if monthrange(myc[i][1], myc[i][0])[1] == myc[i][2]:
+            if myc[i][1] in [365, 366]:
                 exam[i] = True
         if not all(exam):
             continue

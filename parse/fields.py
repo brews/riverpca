@@ -1,3 +1,6 @@
+"""Parse geopotential height and SST fields
+"""
+
 import numpy as np
 import xarray as xr
 import scipy.signal as signal
@@ -7,6 +10,8 @@ MONTHLY_HGT = 'http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/20thC_ReanV2/
 MONTHLY_SST = 'http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/noaa.ersst.v3/sst.mnmean.nc'
 
 def tcr(outpath=None, inpath=MONTHLY_HGT):
+    """Parse TCR fields into local netCDF file
+    """
     ds = load_seasonal(inpath)
     ds = (ds[['hgt']].sel(level = 500)
                      .squeeze()
@@ -20,6 +25,8 @@ def tcr(outpath=None, inpath=MONTHLY_HGT):
         return ds
 
 def ersst(outpath=None, inpath=MONTHLY_SST):
+    """Parse ERSST fields into local netCDF file
+    """
     ds = load_seasonal(inpath)
     ds = ds[['sst']].squeeze()
     # This is a bit clunky. Detrend and fill any gridpoint that has NAN at 
@@ -38,12 +45,16 @@ def ersst(outpath=None, inpath=MONTHLY_SST):
         return ds
 
 def load_seasonal(path):
+    """Read data and average into 3-month seasons
+    """
     with xr.open_dataset(path) as d:
         out = d.resample('QS-DEC', dim = 'time', how = 'mean', 
                          label = 'left', keep_attrs = True)
     return out
 
 def get_wy_labels(ds):
+    """Get wateryear for Dataset time dimension
+    """
     yr = ds['time.year']
     mon = ds['time.month']
     wy = yr.copy()
@@ -51,14 +62,16 @@ def get_wy_labels(ds):
     return wy.values
 
 def get_season_labels(ds):
+    """Get season labels for Dataset, for plotting
+    """
     key = {6: 'JJA-1', 9: 'SON-1', 12: 'DJF', 3: 'MAM'}
     converted = [key[x] for x in ds['time.month'].values]
     return converted
 
 def nandetrend(x, **kwargs):
-    """Detrending of ndarray that contains nans"""
+    """Detrend ndarray that contains nans
+    """
     nan_mask = np.isnan(x)
-    # nan_mask = x.isnull()
     x[nan_mask] = 0 
     x_detrend = signal.detrend(x, type = 'linear', axis = 0)
     x_detrend[nan_mask] = np.nan
