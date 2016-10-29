@@ -1,21 +1,22 @@
-# 2016-10-14
+""" Special plotting and stats functions of varying quality
+"""
 
 import sqlite3
 import string
 import datetime
-import itertools
-import random
-import xarray as xr
 import numpy as np
+import xarray as xr
 import pandas as pd
 import scipy.stats as stats
-import seaborn as sns
-import pylab as plt
+
 import matplotlib as mpl
+import matplotlib.pylab as plt
+import matplotlib.path as mplpath
+import seaborn as sns
+
 import cartopy
 import cartopy.util
 import cartopy.crs as ccrs
-import matplotlib.path as mplpath
 from mpl_toolkits.basemap import Basemap
 
 
@@ -39,6 +40,8 @@ def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''
     Returns:
     An xarray dataset with variables for the statistic and pvalue of the 
     hypothesis test.
+
+    This might work better as a DataSet subclass.
     """
     season = ['JJA-1', 'SON-1', 'DJF', 'MAM']
     pc_dim = ['PC1', 'PC2']
@@ -54,7 +57,6 @@ def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''
     for pc_i in pc_dim:
         for seas_i in season:
             s, pvalue = stat_fun(pc_df[pc_i].values, field[field['season'] == seas_i].values)
-            # s, pvalue = stat_fun(pc_df[pc_i].values, field.sel(season = seas_i).values)
             out[stat_name].loc[dict(PC = pc_i, season= seas_i)] = s
             out['pvalue'].loc[dict(PC = pc_i, season= seas_i)] = pvalue
     if units:
@@ -63,7 +65,7 @@ def pointfield_statistic(field, pc_df, stat_fun, stat_name='statistic', units=''
 
 
 def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=None, **kwargs):
-    """
+    """Generic plotting function for field statistic manuscript figures
     """
     assert map_type in ['north_hemisphere', 'global']
     assert plotfun in ['contourf', 'pcolormesh']
@@ -169,7 +171,8 @@ def plot_pointfield_statistic(ds, map_type, stat_name, sig_alpha=0.05, plotfun=N
     return fig
 
 def check_wy(dbpath, yearlow, yearhigh, westoflon=-104, eastoflon=-125):
-    """Test that each of the USGS stations in the sqllite database have complete observations over the period we are interested in"""
+    """Get USGS sites in sqllitedb have complete obs over time and area
+    """
     #yearlow and yearhigh should be in wateryear
     # This is a very poor way of doing this.
     expected_obs_no = ((yearhigh - yearlow) + 1)
@@ -200,11 +203,12 @@ def adj_gamma_kstest(x):
     """
     # Use with pandas aggregate()?
     x_adj = x + 0.000001
-    gfit = stats.gamma.fit(x_adj, floc = 0) # This should deal with 0 values?
+    gfit = stats.gamma.fit(x_adj, floc = 0) # This should deal with 0 values.
     return stats.kstest(x_adj, lambda a: stats.gamma.cdf(a, *gfit))[1] # [1] should return pvalue.
 
 def spigamma(x):
-    """Transform data like SPI after fitting a gamma function"""
+    """Transform data like SPI after fitting a gamma function
+    """
     # Use with pandas transform().
     zero_mask = x == 0
     q = zero_mask.sum()/len(x)
@@ -213,12 +217,14 @@ def spigamma(x):
     return stats.norm.ppf(g_fit)
 
 def zscore(x):
-    """Standardize data into a Z-score"""
+    """Standardize data into a Z-score
+    """
     # Use with pandas transform(), like spigamma.
     return (x - x.mean()) / x.std()
 
 def plot_northtest(x, nmodes=10):
-    """Screeplot `nmodes` leading modes from EOFS solver instance `x`"""
+    """Screeplot `nmodes` leading modes from EOFS solver instance x
+    """
     fig = plt.figure(figsize = (3.74016, 4.52756))
     frac_var = x.varianceFraction(nmodes)
     err = x.northTest(nmodes, vfscaled = True)
@@ -229,17 +235,21 @@ def plot_northtest(x, nmodes=10):
     return fig
 
 def plot_pc(x, yr, nmodes=10):
-    """Plot `nmodes` leading PCs from EOFS solver instance `x` over corresponding array of years, `yr`"""
+    """Plot nmodes leading PCs from EOFS solver x over corresponding array of years, yr
+    """
     pc = x.pcs(npcs = nmodes, pcscaling = 1)
     frac_var = x.varianceFraction(nmodes)
-    fig, axes = plt.subplots(figsize = (3.74016, 4.52756), nrows = nmodes, ncols = 1, sharex = True, sharey = True)
+    fig, axes = plt.subplots(figsize = (3.74016, 4.52756), nrows = nmodes, 
+                             ncols = 1, sharex = True, sharey = True)
     for i in range(nmodes):
         axes.flat[i].plot(yr, pc[:, i], "-o")
-        axes.flat[i].set_title("PC " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)")
+        title_str = "PC " + str(i + 1) + " (" + str(np.round(frac_var[i] * 100, 1)) + "%)" 
+        axes.flat[i].set_title(title_str)
     return fig
 
 def plot_eof(x, lat, lon, nmodes=10, figure_size=(7.48031, 4.52756)):
-    """Plot covariance map for `nmodes` EOFS of EOFS solver instance `x`."""
+    """Plot covariance map for nmodes EOFS of EOFs solver instance x
+    """
     eof = x.eofsAsCovariance(neofs = nmodes)
     frac_var = x.varianceFraction(nmodes)
     fig, axes = plt.subplots(figsize = figure_size,
@@ -277,14 +287,14 @@ def plot_eof(x, lat, lon, nmodes=10, figure_size=(7.48031, 4.52756)):
     return fig
 
 def plot_gagesmap(lat, lon):
-    """Create a simple sample map of USGS gages in the Western US, given lat/lon"""
+    """Create a simple point map of USGS gages in the Western US, given lat/lon
+    """
     fig = plt.figure(figsize = (3.74016, 4.52756))
     ax = fig.add_axes([0.1,0.1,0.8,0.8])
     m = Basemap(width = 2000000, height = 2300000, 
                 resolution = 'l', projection = 'stere', 
                 lat_ts = 40.0, 
                 lat_0 = 40.0, lon_0 = -114.0)
-    # m.drawmapboundary()
     m.drawcoastlines(color = "#333333")
     m.drawstates(linewidth = 0.7, color = "#333333")
     m.drawcountries(color = "#333333")
@@ -314,6 +324,7 @@ def pearson_corr(x, field):
         The p-values returned by this function are from a two-sided Student's 
         t-distribution. The test is against the null hypothesis that the 
         correlation is not significantly different from "0".
+        This function could use some more work.
     """
     field = field.copy()
     f_oldshape = field.shape
@@ -321,22 +332,20 @@ def pearson_corr(x, field):
     n = len(x)
     df = n - 2
     r = ((x[:, np.newaxis] * field).sum(axis = 0) - n * x.mean() * field.mean(axis = 0)) / (np.sqrt(np.sum(x**2) - n * x.mean()**2) * np.sqrt(np.sum(field**2, axis = 0) - n * field.mean(axis = 0)**2))
-    # TODO: Need to ensure that R is between -1 and 1. This is from float-point rounding errors.
-    # r[r > 1] = 1
-    # r[r < -1] = -1
     t = r * np.sqrt(df/(1 - r**2))
     p = stats.betai(0.5*df, 0.5, df/(df+t*t))
-    # p = 1 - (stats.t.cdf(abs(t), df = df) - stats.t.cdf(-abs(t), df = df))
     r.shape = (f_oldshape[1], f_oldshape[2])
     p.shape = r.shape
     return r, p
 
 def cut_divisions(x):
-    """Return bool array indicating whether observations are in the 'high' composite"""
+    """Return bool array indicating whether observations are in the 'high' composite
+    """
     return (x > 0)
 
 def ttest(x, msk):
-    """Apply bool mask to x and Welch's t-test the mask results and it's inverse"""
+    """Apply bool mask to x and Welch's t-test the mask results and it's inverse
+    """
     t, p = stats.ttest_ind(x[msk], x[~msk], equal_var = False)
     return t, p
 
@@ -361,15 +370,20 @@ def composite_ttest(x, field):
     dif = np.mean(field[divisions_high], 0) - np.mean(field[~divisions_high], 0)
     return dif, p
 
+# If I have some time it might be worth wrapping funcs below into a special 
+# class with plot methods.
+
 def pointfield_corr(**kwargs):
-    """ Point correlation with significance test"""
+    """ Point correlation with significance test
+    """
     out = pointfield_statistic(**kwargs, 
                                      stat_fun = pearson_corr,
                                      stat_name = 'Correlation')
     return out
 
 def plot_pointfield_corr(ds, map_type):
-    """Plot point correlation maps"""
+    """Plot point correlation maps
+    """
     out = plot_pointfield_statistic(ds = ds,
                                           map_type = map_type,
                                           stat_name = 'Correlation',
@@ -378,13 +392,15 @@ def plot_pointfield_corr(ds, map_type):
     return out
 
 def pointfield_ttest(**kwargs):
-    """ Point correlation with significance test"""
+    """ Point correlation with significance test
+    """
     out = pointfield_statistic(**kwargs, 
                                      stat_fun = composite_ttest)
     return out
 
 def plot_pointfield_ttest(ds, map_type, **kwargs):
-    """Plot composite t-test maps"""
+    """Plot composite t-test maps
+    """
     out = plot_pointfield_statistic(ds = ds,
                                           map_type = map_type,
                                           plotfun = 'pcolormesh',

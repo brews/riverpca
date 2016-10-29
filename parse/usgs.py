@@ -5,6 +5,9 @@ import logging
 import sqlite3 as sql
 import pandas as pd
 
+# If this Excel sheet disappears from the USGS site below, I left a 
+# tab-delimited copy in the ../data/ directory.
+META_PATH = 'http://water.usgs.gov/osw/hcdn-2009/HCDN-2009_Station_Info.xlsx'
 
 def _read_gage(site, reporttype_str, skip_rows):
     """Get USGS waterservice information
@@ -47,7 +50,7 @@ def clean_sitecode(x):
         x = '0' + x
     return x
 
-def load_metadata(path='http://water.usgs.gov/osw/hcdn-2009/HCDN-2009_Station_Info.xlsx'):
+def load_metadata(path=META_PATH):
     """Read in metadata Excel spreadsheet for USGS HCDN-2009 gages
     """
     meta = pd.read_excel(path, converters = {'STATION ID': clean_sitecode})
