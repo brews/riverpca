@@ -1,6 +1,6 @@
 # riverpca
 
-Climate-oriented PCA of USGS river gages in the western US. This code was part of analysis and data collection for a paper currently in review.
+Climate-oriented PCA of USGS river gages in the western US. This code was part of analysis and data collection for the 2017 article ["Pacific SSTs, mid-latitude atmospheric circulation, and widespread interannual anomalies in Western US streamflow"](http://dx.doi.org/10.1002/2017GL073536) in Geophysical Research Letters.
 
 Analysis for the paper is in the `notebooks/` directory. This directory contains a number of Jupyter notebooks. You can easily view the code and output figures in these notebooks online through GitHub, without the need to download data, scripts, or code. The other files and directories in this repository are support material used for the analysis.
 
